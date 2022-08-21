@@ -89,7 +89,6 @@ void bilateralFilterLocalStatisticsPrior(const std::vector<cv::Mat>& src, std::v
 	}*/
 }
 
-
 static void bilateralFilterLocalStatisticsPrior32FC3(const cv::Mat& src, cv::Mat& dest, const float sigma_range, const float sigma_space, const float delta)
 {
 	CV_Assert(src.channels() == 3);
@@ -101,8 +100,8 @@ static void bilateralFilterLocalStatisticsPrior32FC3(const cv::Mat& src, cv::Mat
 	int D = 2 * ceil(sigma_space * 3.f) + 1;
 	cv::GaussianBlur(src, smooth, cv::Size(D, D), sigma_space);
 	const float* s = src.ptr<float>();
-	float* m = smooth.ptr<float>();
-	float* d = dest.ptr<float>();
+	float* sm = smooth.ptr<float>();
+	float* dst = dest.ptr<float>();
 
 	const float sqrt2_sr_divpi = sqrt(2.0 / CV_PI) * sigma_range;
 	const float sqrt2_sr_inv = 1.f / (sqrt(2.0) * sigma_range);
@@ -111,16 +110,16 @@ static void bilateralFilterLocalStatisticsPrior32FC3(const cv::Mat& src, cv::Mat
 	const float erf1 = erf(eps1);
 	for (int i = 0; i < src.size().area(); i++)
 	{
-		const float  diffb = m[3 * i + 0] - s[3 * i + 0];
-		const float  diffg = m[3 * i + 1] - s[3 * i + 1];
-		const float  diffr = m[3 * i + 2] - s[3 * i + 2];
+		const float diffb = sm[3 * i + 0] - s[3 * i + 0];
+		const float diffg = sm[3 * i + 1] - s[3 * i + 1];
+		const float diffr = sm[3 * i + 2] - s[3 * i + 2];
 		const float diff = sqrt(diffb * diffb + diffg * diffg + diffr * diffr);
 		const float eps2 = (delta + 2.f * diff) * sqrt2_sr_inv;
 		const float coeff = (exp1 - exp(-eps2 * eps2)) / (erf1 + erf(eps2) + FLT_EPSILON);
 
-		d[3 * i + 0] = s[3 * i + 0] + coeff * sqrt2_sr_divpi / diff * diffb;
-		d[3 * i + 1] = s[3 * i + 1] + coeff * sqrt2_sr_divpi / diff * diffg;
-		d[3 * i + 2] = s[3 * i + 2] + coeff * sqrt2_sr_divpi / diff * diffr;
+		dst[3 * i + 0] = s[3 * i + 0] + coeff * sqrt2_sr_divpi / diff * diffb;
+		dst[3 * i + 1] = s[3 * i + 1] + coeff * sqrt2_sr_divpi / diff * diffg;
+		dst[3 * i + 2] = s[3 * i + 2] + coeff * sqrt2_sr_divpi / diff * diffr;
 	}
 }
 

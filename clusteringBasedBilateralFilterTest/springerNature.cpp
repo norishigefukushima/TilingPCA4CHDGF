@@ -388,12 +388,12 @@ void generateFnF()
 void testClusteringCBF_SpringerNature(string wname)
 {
 	const int color = 1;//color
-	//int ColorOptionRGB = IMREAD_COLOR;
-	//int ColorOptionGRAY = IMREAD_GRAYSCALE;
-	int ColorOptionRGB = IMREAD_REDUCED_COLOR_4;
-	int ColorOptionGRAY = IMREAD_REDUCED_GRAYSCALE_4;
-	const int readw = 512 / 4;
-	const int readh = 512 / 4;
+	int ColorOptionRGB = IMREAD_COLOR;
+	int ColorOptionGRAY = IMREAD_GRAYSCALE;
+	//int ColorOptionRGB = IMREAD_REDUCED_COLOR_2;
+	//int ColorOptionGRAY = IMREAD_REDUCED_GRAYSCALE_2;
+	const int readw = 512 / 1;
+	const int readh = 512 / 1;
 	//#define VIS_TILING_PCA // for visualization. not using for experiment.
 	//generateFnF();
 	//generateRGBD();
@@ -422,9 +422,9 @@ void testClusteringCBF_SpringerNature(string wname)
 	//src[0] = imread("img/lenna.png");
 
 	//cv::Size division(16, 16);
-	//cv::Size division(8, 8);
+	cv::Size division(8, 8);
 	//cv::Size division(8, 4);
-	cv::Size division(4, 4);
+	//cv::Size division(4, 4);
 	//cv::Size division(8, 4);
 	//cv::Size division(2, 2);
 	//cv::Size division(1, 1);
@@ -594,8 +594,8 @@ void testClusteringCBF_SpringerNature(string wname)
 	int lambda = 100; createTrackbar("lambda", wname2, &lambda, 100);
 	//convmethod = "interpolation NLM" sw=11;
 	int sw1 = 0; createTrackbar("sw1", wname2, &sw1, 8); setTrackbarMin("sw1", wname2, -1);
-	int sw2 = 0; createTrackbar("sw2", wname2, &sw2, 8); setTrackbarMin("sw2", wname2, -1);
-	int sw3 = 0; createTrackbar("sw3", wname2, &sw3, 8); setTrackbarMin("sw3", wname2, -1);
+	int sw2 = 2; createTrackbar("sw2", wname2, &sw2, 8); setTrackbarMin("sw2", wname2, -1);
+	int sw3 = 5; createTrackbar("sw3", wname2, &sw3, 8); setTrackbarMin("sw3", wname2, -1);
 
 	int showIndex = 0; createTrackbar("showIndex", wname2, &showIndex, 2);
 	int alpha = 0; createTrackbar("a", wname2, &alpha, 100);
@@ -608,7 +608,7 @@ void testClusteringCBF_SpringerNature(string wname)
 	int srcdownsample = 0; createTrackbar("src_downsample", wname2, &srcdownsample, 3);
 
 	//int K_ = 5; createTrackbar("K", wname, &K_, 5000);
-	int K_ = 100; createTrackbar("K", wname2, &K_, 1024); setTrackbarMin("K", wname2, 2);
+	int K_ = 10; createTrackbar("K", wname2, &K_, 1024); setTrackbarMin("K", wname2, 2);
 	int km_iter = 5; createTrackbar("km iter", wname2, &km_iter, 100);
 	setTrackbarMin("km iter", wname2, 1);
 	int km_attempts = 1; createTrackbar("km attempts", wname2, &km_attempts, 5);
@@ -632,17 +632,17 @@ void testClusteringCBF_SpringerNature(string wname)
 	int tilex = 2; createTrackbar("tilex", wname2, &tilex, 4);
 	int tiley = 2; createTrackbar("tiley", wname2, &tiley, 4);
 	int softlambda = 50; createTrackbar("soft:lambda*0.001", wname2, &softlambda, 2000);
-	int localmu = 1; createTrackbar("isLocalMu", wname2, &localmu, 1);
-	//int localsp = 0; createTrackbar("isLocalSP", wname2, &localsp, 1);
-	//int delta = 0; createTrackbar("delta", wname2, &delta, 255);
+	int localmu = 0; createTrackbar("isLocalMu", wname2, &localmu, 1);
+	int localsp = 0; createTrackbar("isLocalSP", wname2, &localsp, 1);
+	int localsp_delta = 0; createTrackbar("LocalSP delta", wname2, &localsp_delta, 1000);
 	int nlm_r = 1;
 	int max_dim = (2 * nlm_r + 1) * (2 * nlm_r + 1) * src[0].channels();
 	int pca_channel = 10; createTrackbar("pca_ch", wname2, &pca_channel, max_dim); setTrackbarMin("pca_ch", wname2, 1);
 	int pca_method1 = 0; createTrackbar("pca_method1", wname2, &pca_method1, (int)NeighborhoodPCA::SIZE - 1);
 
 	int border = cv::BORDER_DEFAULT; createTrackbar("border", wname2, &border, 4);
-	//cp::SpatialFilterAlgorithm gf_method = cp::SpatialFilterAlgorithm::SlidingDCT5_AVX;
-	cp::SpatialFilterAlgorithm gf_method = cp::SpatialFilterAlgorithm::FIR_OPENCV;
+	cp::SpatialFilterAlgorithm gf_method = cp::SpatialFilterAlgorithm::SlidingDCT5_AVX;
+	//cp::SpatialFilterAlgorithm gf_method = cp::SpatialFilterAlgorithm::FIR_OPENCV;
 
 	int depth = CV_32F;
 	bool isDownsampleClustering = true;
@@ -657,7 +657,7 @@ void testClusteringCBF_SpringerNature(string wname)
 
 	cp::UpdateCheck ucRecomputeRef(sigma_range, sigma_space, src_num, methodHDGF, pca_channel, pca_method1, lambda, tilex, tiley, clusteringHDGFMethod, border);
 	cp::UpdateCheck uc2(sw1, sw2, sw3, cm, ds, K_, ds_method, tile_truncate_r, crop, gf_order, srcdownsample);
-	cp::UpdateCheck uc3(km_attempts, km_sigma, km_iter, localmu, softlambda);
+	cp::UpdateCheck uc3(km_attempts, km_sigma, km_iter, localmu, localsp, localsp_delta,softlambda);
 	//cp::UpdateCheck uc4(lambda, delta, localmu, localsp);
 	cp::ConsoleImage ci(Size(640, 800), "Info");
 
@@ -851,7 +851,7 @@ void testClusteringCBF_SpringerNature(string wname)
 		}
 
 		if (uc2.isUpdate(sw1, sw2, sw3, cm, ds, K_, ds_method, tile_truncate_r, crop, gf_order, srcdownsample) ||
-			uc3.isUpdate(km_attempts, km_sigma, km_iter, localmu, softlambda)// ||
+			uc3.isUpdate(km_attempts, km_sigma, km_iter, localmu, localsp, localsp_delta,softlambda)// ||
 			//uc4.isUpdate(lambda, delta,localsp)
 			)
 		{
@@ -892,7 +892,9 @@ void testClusteringCBF_SpringerNature(string wname)
 		{
 			Ptr<TileConstantTimeHDGF> tHDGF = (n == 0) ? tHDGF1 : (n == 1) ? tHDGF2 : tHDGF3;
 			tHDGF->setLambdaInterpolation(softlambda * 0.001);
-			tHDGF->setIsUseLocalMu(localmu);
+			tHDGF->setIsUseLocalMu(localmu == 1);
+			tHDGF->setIsUseLocalStatisticsPrior(localsp == 1);
+			tHDGF->setDeltaLocalStatisticsPrior(localsp_delta*0.1);
 			tHDGF->setKMeansAttempts(km_attempts);
 			tHDGF->setNumIterations(km_iter);
 			//std::cout << "km sigma" << km_sigma << std::endl;

@@ -563,7 +563,7 @@ double ConstantTimeHDGFSingleBase::testClustering(const std::vector<cv::Mat>& sr
 			}
 			mindiff = std::min(mindiff, diff);
 		}
-		clusteringErrorMap.at<float>(i) = mindiff/ch;
+		clusteringErrorMap.at<float>(i) = mindiff / ch;
 		error += mindiff;
 	}
 	return error / size;
@@ -819,12 +819,12 @@ void ConstantTimeHDGFSingleBase::clustering()
 	}
 	CV_Assert(mu.rows == K);
 
-	testClustering(vguide);
+	if(isTestClustering)testClustering(vguide);
 }
 
 void ConstantTimeHDGFSingleBase::downsampleForClustering(cv::Mat& src, cv::Mat& dest)
 {
-	switch (downsampleMethod)
+	switch (downsampleClusteringMethod)
 	{
 	case NEAREST:
 	case LINEAR:
@@ -834,7 +834,7 @@ void ConstantTimeHDGFSingleBase::downsampleForClustering(cv::Mat& src, cv::Mat& 
 		//std::cout << "DOWNSAMPLE" << std::endl;
 		cv::resize(src, dest,
 			cv::Size(img_size.width / downsampleRate, img_size.height / downsampleRate),
-			0, 0, downsampleMethod);
+			0, 0, downsampleClusteringMethod);
 		//reshaped_image32f.convertTo(input_image8u, CV_8UC3);
 		//cv::imshow("test", input_image8u);
 		//cv::waitKey();
@@ -852,22 +852,21 @@ void ConstantTimeHDGFSingleBase::downsampleForClustering(cv::Mat& src, cv::Mat& 
 	}
 }
 
-void ConstantTimeHDGFSingleBase::downsampleImage()
+void ConstantTimeHDGFSingleBase::downsampleImage(const std::vector<cv::Mat>& vsrc, std::vector<cv::Mat>& vsrcRes, const std::vector<cv::Mat>& vguide, std::vector<cv::Mat>& vguideRes, const int downsampleImageMethod)
 {
+	const double res = 1.0 / downSampleImage;
 	if (downSampleImage != 1)
 	{
-		//const int downsampleImageMethod = INTER_NEAREST;
-		const int downsampleImageMethod = cv::INTER_AREA;
 		for (int c = 0; c < channels; c++)
 		{
-			resize(vsrc[c], vsrcRes[c], cv::Size(), 1.0 / downSampleImage, 1.0 / downSampleImage, downsampleImageMethod);
+			resize(vsrc[c], vsrcRes[c], cv::Size(), res, res, downsampleImageMethod);
 		}
 
 		if (isJoint)
 		{
 			for (int c = 0; c < guide_channels; c++)
 			{
-				resize(vguide[c], vguideRes[c], cv::Size(), 1.0 / downSampleImage, 1.0 / downSampleImage, downsampleImageMethod);
+				resize(vguide[c], vguideRes[c], cv::Size(), res, res, downsampleImageMethod);
 			}
 		}
 	}
@@ -895,7 +894,7 @@ void ConstantTimeHDGFSingleBase::downsampleForClustering(std::vector<cv::Mat>& s
 		}
 	}
 
-	switch (downsampleMethod)
+	switch (downsampleClusteringMethod)
 	{
 	case NEAREST:
 	case LINEAR:
@@ -909,7 +908,7 @@ void ConstantTimeHDGFSingleBase::downsampleForClustering(std::vector<cv::Mat>& s
 		for (int c = 0; c < channels; c++)
 		{
 			cv::Mat d(size, CV_32F, dest.ptr<float>(c));
-			cv::resize(cropBufferForClustering[c], d, size, 0, 0, downsampleMethod);
+			cv::resize(cropBufferForClustering[c], d, size, 0, 0, downsampleClusteringMethod);
 		}
 		break;
 	}
@@ -1055,7 +1054,7 @@ void ConstantTimeHDGFSingleBase::jointfilter(const std::vector<cv::Mat>& src, co
 {
 	isJoint = true;
 	statePCA = 0;
-	
+
 	setParameter(src[0].size(), sigma_space, sigma_range, cm,
 		K, gf_method, gf_order, depth,
 		isDownsampleClustering, downsampleRate, downsampleMethod, boundaryLength, border);
@@ -1133,7 +1132,7 @@ void ConstantTimeHDGFSingleBase::nlmfilter(const std::vector<cv::Mat>& src, cons
 			cv::merge(guide, temp);
 			cp::imshowScale("a", temp);
 			cv::waitKey();
-		}	
+		}
 	}*/
 	body(vsrc, dst, vguide);
 }
@@ -1205,7 +1204,7 @@ void ConstantTimeHDGFSingleBase::setParameter(cv::Size img_size, double sigma_sp
 
 	this->isDownsampleClustering = isDownsampleClustering;
 	this->downsampleRate = downsampleRate;
-	this->downsampleMethod = downsampleMethod;
+	this->downsampleClusteringMethod = downsampleMethod;
 }
 
 void ConstantTimeHDGFSingleBase::setConcat_offset(int concat_offset)

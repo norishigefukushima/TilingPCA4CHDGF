@@ -46,7 +46,7 @@ void ConstantTimeHDGF_NystromSingle::alloc(cv::Mat& dst)
 	dst.create(img_size, CV_MAKETYPE(CV_32F, channels));
 }
 
-void ConstantTimeHDGF_NystromSingle::computeAandEVD()
+void ConstantTimeHDGF_NystromSingle::computeAandEVD(const cv::Mat& mu, cv::Mat& lambdaA, cv::Mat& eigenvecA)
 {
 	const float coeff = float(-1.0 / (2.0 * sigma_range * sigma_range));
 	const bool is32F = true;
@@ -779,10 +779,10 @@ void ConstantTimeHDGF_NystromSingle::split_blur_merge()
 				resize(Uf[2], downsampleSRC[2], cv::Size(), res, res, cv::INTER_NEAREST);
 				resize(U, downsampleSRC[3], cv::Size(), res, res, cv::INTER_NEAREST);
 
-				GF->filter(downsampleSRC[0], downsampleSRC[0], sigma_space * res, spatial_order,borderType);
-				GF->filter(downsampleSRC[1], downsampleSRC[1], sigma_space * res, spatial_order,borderType);
-				GF->filter(downsampleSRC[2], downsampleSRC[2], sigma_space * res, spatial_order,borderType);
-				GF->filter(downsampleSRC[3], downsampleSRC[3], sigma_space * res, spatial_order,borderType);
+				GF->filter(downsampleSRC[0], downsampleSRC[0], sigma_space * res, spatial_order, borderType);
+				GF->filter(downsampleSRC[1], downsampleSRC[1], sigma_space * res, spatial_order, borderType);
+				GF->filter(downsampleSRC[2], downsampleSRC[2], sigma_space * res, spatial_order, borderType);
+				GF->filter(downsampleSRC[3], downsampleSRC[3], sigma_space * res, spatial_order, borderType);
 
 				resize(downsampleSRC[0], Uf[0], cv::Size(), downSampleImage, downSampleImage, cv::INTER_LINEAR);
 				resize(downsampleSRC[1], Uf[1], cv::Size(), downSampleImage, downSampleImage, cv::INTER_LINEAR);
@@ -933,7 +933,7 @@ void ConstantTimeHDGF_NystromSingle::split_blur_merge()
 	}
 }
 
-void ConstantTimeHDGF_NystromSingle::divide(cv::Mat& dst)
+void ConstantTimeHDGF_NystromSingle::normalize(cv::Mat& dst)
 {
 	const bool isSafeDiv = true;
 	if (isSafeDiv)
@@ -1081,7 +1081,7 @@ void ConstantTimeHDGF_NystromSingle::divide(cv::Mat& dst)
 }
 
 template<int channels>
-void ConstantTimeHDGF_NystromSingle::divide(cv::Mat& dst)
+void ConstantTimeHDGF_NystromSingle::normalize(cv::Mat& dst)
 {
 	const bool isSafeDiv = true;
 	if (isSafeDiv)
@@ -1179,7 +1179,7 @@ void ConstantTimeHDGF_NystromSingle::body(const std::vector<cv::Mat>& src, cv::M
 
 	{
 		//timer[2].start();
-		computeAandEVD();//KxK
+		computeAandEVD(mu, lambdaA, eigenvecA);//KxK
 		//timer[2].getpushLapTime();
 	}
 	{
@@ -1223,8 +1223,8 @@ void ConstantTimeHDGF_NystromSingle::body(const std::vector<cv::Mat>& src, cv::M
 
 	{
 		//timer[5].start();
-		if (channels == 33) divide<33>(dst);
-		else divide(dst);
+		if (channels == 33) normalize<33>(dst);
+		else normalize(dst);
 		//timer[5].getpushLapTime();
 	}
 }

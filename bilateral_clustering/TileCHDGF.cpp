@@ -628,8 +628,9 @@ void TileConstantTimeHDGF::jointPCAfilter(const cv::Mat& src, const cv::Mat& gui
 		if (src.channels() != 3) split(src, srcSplit);
 		if (guide.channels() != 3) split(guide, guideSplit);
 
+#if DEBUG_CLUSTERING
 		Mat emap(src.size(), CV_32F);
-
+#endif
 #ifndef DEBUG_OMP_DISABLE
 #pragma omp parallel for schedule(static)
 #endif
@@ -667,9 +668,13 @@ void TileConstantTimeHDGF::jointPCAfilter(const cv::Mat& src, const cv::Mat& gui
 			scbf[thread_num]->jointPCAfilter(subImageInput[thread_num], subImageGuide[thread_num], guide_channels, subImageOutput[thread_num],
 				sigma_space, sigma_range, cm, K, gf_method, gf_order, depth, isDownsampleClustering, downsampleRate, downsampleMethod, R, borderType);
 			cp::pasteTileAlign(subImageOutput[thread_num], dst, div, idx, r, 8, 8);
+#if DEBUG_CLUSTERING
 			Mat e; scbf[thread_num]->getClusteringErrorMap(e); cp::pasteTileAlign(e, emap, div, idx, r, 8, 8);
+#endif
 		}
+#if DEBUG_CLUSTERING
 		imshowScale("emap", emap);
+#endif
 	}
 
 	//scbf[0]->printRapTime();
@@ -733,8 +738,9 @@ void TileConstantTimeHDGF::jointPCAfilter(const std::vector<cv::Mat>& src, const
 				}
 			}
 		}
-
+#if DEBUG_CLUSTERING
 		Mat emap(src[0].size(), CV_32F);
+#endif
 #ifndef DEBUG_OMP_DISABLE
 #pragma omp parallel for schedule(static)
 #endif
@@ -756,10 +762,13 @@ void TileConstantTimeHDGF::jointPCAfilter(const std::vector<cv::Mat>& src, const
 			scbf[thread_num]->jointPCAfilter(subImageInput[thread_num], subImageGuide[thread_num], guide_channels, subImageOutput[thread_num],
 				sigma_space, sigma_range, cm, K, gf_method, gf_order, depth, isDownsampleClustering, downsampleRate, downsampleMethod, R, borderType);
 			cp::pasteTileAlign(subImageOutput[thread_num], dst, div, idx, r, vecsize, vecsize);
-
+#if DEBUG_CLUSTERING
 			Mat e; scbf[thread_num]->getClusteringErrorMap(e); cp::pasteTileAlign(e, emap, div, idx, r, 8, 8);
+#endif
 		}
+#if DEBUG_CLUSTERING
 		imshowScale("emap", emap);
+#endif
 	}
 }
 
@@ -819,9 +828,9 @@ void TileConstantTimeHDGF::nlmfilter(const cv::Mat& src, const cv::Mat& guide, c
 
 		if (src.channels() != 3)split(src, srcSplit);
 		if (guide.channels() != 3)split(guide, guideSplit);
-
+#if DEBUG_CLUSTERING
 		Mat emap(src.size(), CV_32F);
-
+#endif
 #ifndef DEBUG_OMP_DISABLE
 #pragma omp parallel for schedule(static)
 #endif
@@ -857,9 +866,13 @@ void TileConstantTimeHDGF::nlmfilter(const cv::Mat& src, const cv::Mat& guide, c
 			//merge(subImageInput[thread_num], subImageOutput[thread_num]);
 
 			cp::pasteTileAlign(subImageOutput[thread_num], dst, div, idx, r, 8, 8);
+#if DEBUG_CLUSTERING
 			Mat e; scbf[thread_num]->getClusteringErrorMap(e); cp::pasteTileAlign(e, emap, div, idx, r, 8, 8);
+#endif
 		}
+#if DEBUG_CLUSTERING
 		imshowScale("emap", emap);
+#endif
 	}
 }
 

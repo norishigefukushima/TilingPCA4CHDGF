@@ -6,6 +6,8 @@
 #include <spatialfilter/SpatialFilter.hpp>
 #include <fmath/fmath.hpp>
 
+#define DEBUG_CLUSTERING 0
+
 enum class ClusterMethod
 {
 	random_sample,
@@ -118,10 +120,6 @@ inline std::string getClusterMethodName(ClusterMethod method)
 	return ret;
 }
 
-void randomSample(const int K, cv::Mat& center);
-
-void get_label_center(cv::Mat src, const int K, cv::Mat& labels, cv::Mat& centers);
-
 
 inline int getNumGF(int k)
 {
@@ -200,6 +198,11 @@ public:
 
 class ConstantTimeHDGFSingleBase
 {
+#if DEBUG_CLUSTERING
+	const bool isTestClustering = true;
+#else 
+	const bool isTestClustering = false;
+#endif
 	cv::Mat labels, guide_image8u,
 		reshaped_image8u, reshaped_image32f;
 protected:
@@ -246,7 +249,8 @@ protected:
 	bool isCropBoundaryClustering = false;
 	bool isDownsampleClustering = false;
 	int downsampleRate;
-	int downsampleMethod = cv::INTER_NEAREST;
+	int downsampleClusteringMethod = cv::INTER_NEAREST;
+	int downsampleImageMethod = cv::INTER_AREA;
 
 	int concat_offset = 0;
 	int pca_r = 0;
@@ -261,7 +265,7 @@ protected:
 	void clustering();
 	void downsampleForClustering(cv::Mat& src, cv::Mat& dest);
 
-	void downsampleImage();
+	void downsampleImage(const std::vector<cv::Mat>& vsrc, std::vector<cv::Mat>& vsrcRes, const std::vector<cv::Mat>& vguide, std::vector<cv::Mat>& vguideRes, const int downsampleImageMethod = cv::INTER_AREA);
 	std::vector<cv::Mat> cropBufferForClustering;
 	std::vector<cv::Mat> cropBufferForClustering2;
 	void downsampleForClustering(std::vector<cv::Mat>& src, cv::Mat& dest, const bool isCropBoundary);
@@ -411,7 +415,7 @@ private:
 	cv::Mat U_Gaussian;//image_size
 
 	void alloc(cv::Mat& dst);
-	void computeAandEVD();//O(GC*K*K/2)
+	void computeAandEVD(const cv::Mat& mu, cv::Mat& lambdaA, cv::Mat& eigenvecA);//O(GC*K*K/2)
 
 	template<int use_fmath, int channel>
 	void computeB(const std::vector<cv::Mat>& guide);//O(GC*N*K)
@@ -422,9 +426,9 @@ private:
 	template<int channels>
 	void split_blur_merge();
 	void split_blur_merge();
-	void divide(cv::Mat& dst);
+	void normalize(cv::Mat& dst);
 	template<int channels>
-	void divide(cv::Mat& dst);
+	void normalize(cv::Mat& dst);
 	void body(const std::vector<cv::Mat>& src, cv::Mat& dst, const std::vector<cv::Mat>& guide) override;
 
 public:
@@ -470,7 +474,9 @@ private:
 
 	void alloc(cv::Mat& dst);
 	template<int use_fmath>
-	void computeWandAlpha(const std::vector<cv::Mat>& guide);
+	void computeWandAlpha(const std::vector<cv::Mat>& guide, const std::vector<cv::Mat>& guideRes);
+	template<int flag>
+	void merge(cv::Mat& dst, const int k);
 	template<int flag>
 	void split_blur_merge(cv::Mat& dst, const int k);
 
@@ -510,15 +516,22 @@ private:
 
 	template<int use_fmath>
 	void mergeRecomputeAlphaForUsingMu(std::vector<cv::Mat>& src, const int k, const bool isInit);
-	template<int use_fmath, int channels, int guide_channels>
-	void mergeRecomputeAlphaForUsingMuPCA(std::vector<cv::Mat>& src, const int k, const bool isInit);
-	template<int use_fmath>
-	void mergeRecomputeAlphaForUsingMuPCA(std::vector<cv::Mat>& src, const int k, const bool isInit);
+
+	template<int use_fmath, const bool isInit,int channels, int guide_channels>
+	void mergeRecomputeAlphaForUsingMuPCA(std::vector<cv::Mat>& guide, const int k);
+	template<int use_fmath, const bool isInit>
+	void mergeRecomputeAlphaForUsingMuPCA(std::vector<cv::Mat>& guide, const int k);
+	template<int use_fmath, const bool isInit>
+	void mergeRecomputeAlpha(const std::vector<cv::Mat>& guide, const int k);
+	void mergePreComputedAlpha(const int k, const bool isInit);
+
 	void merge(const int k, const bool isInit);
 
+
 	template<int channels>
-	void split_blur_merge(const int k, const bool isInit, const bool isUseFmath, const bool isUseLSP);
-	void split_blur_merge(const int k, const bool isInit, const bool isUseFmath, const bool isUseLSP);
+	void split_blur(const int k, const bool isUseFmath, const bool isUseLSP);
+	void split_blur(const int k, const bool isUseFmath, const bool isUseLSP);
+
 	void normalize(cv::Mat& dst);
 
 	void body(const std::vector <cv::Mat>& src, cv::Mat& dst, const std::vector<cv::Mat>& guide) override;

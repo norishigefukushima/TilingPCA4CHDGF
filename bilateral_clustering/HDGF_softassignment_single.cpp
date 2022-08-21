@@ -3,14 +3,33 @@
 
 #include <opencp.hpp>
 
+void ConstantTimeHDGF_SoftAssignmentSingle::setLambdaInterpolation(const float lambda)
+{
+	this->lambda = lambda;
+}
+
 void ConstantTimeHDGF_SoftAssignmentSingle::alloc(cv::Mat& dst)
 {
+	downsampleSRC.resize(channels + 1);
+
 	if (vecW.size() != K || vecW[0].size() != img_size)
 	{
 		vecW.resize(K);
 		for (int i = 0; i < K; i++)
 		{
 			vecW[i].create(img_size, CV_32F);
+		}
+	}
+
+	if (downSampleImage != 1)
+	{
+		vsrcRes.resize(channels);
+		vguideRes.resize(guide_channels);
+
+		NumerDenomRes.resize(channels + 1);
+		for (int c = 0; c < channels + 1; c++)
+		{
+			NumerDenomRes[c].create(img_size, CV_32FC1);
 		}
 	}
 
@@ -40,15 +59,23 @@ void ConstantTimeHDGF_SoftAssignmentSingle::alloc(cv::Mat& dst)
 	if (split_inter.size() != channels) split_inter.resize(channels);
 	for (int c = 0; c < channels; c++)
 	{
-		split_inter[c].create(img_size, CV_32F);
+		if (split_inter[c].size() != img_size)
+			split_inter[c].create(img_size, CV_32FC1);
 	}
 
 	dst.create(img_size, CV_MAKETYPE(CV_32F, channels));
 }
 
 template<int use_fmath>
-void ConstantTimeHDGF_SoftAssignmentSingle::computeWandAlpha(const std::vector<cv::Mat>& guide)
+void ConstantTimeHDGF_SoftAssignmentSingle::computeWandAlpha(const std::vector<cv::Mat>& guide, const std::vector<cv::Mat>& guideRes)
 {
+	/*const cv::Size size = img_size / downSampleImage;
+	const int imsize = size.area();
+	const int IMSIZE8 = imsize / 8;*/
+	const cv::Size size = img_size;
+	const int imsize = size.area();
+	const int IMSIZE8 = imsize / 8;
+
 	const float coeff = float(-1.0 / (2.0 * sigma_range * sigma_range));
 	const __m256 mcoef = _mm256_set1_ps(coeff);
 	const __m256 mlambda = _mm256_set1_ps(-lambda);
@@ -155,10 +182,13 @@ void ConstantTimeHDGF_SoftAssignmentSingle::computeWandAlpha(const std::vector<c
 		}
 		else if (guide_channels == 3)
 		{
+			/*const float* im0 = (downSampleImage == 1) ? guide[0].ptr<float>() : guideRes[0].ptr<float>();
+			const float* im1 = (downSampleImage == 1) ? guide[1].ptr<float>() : guideRes[1].ptr<float>();
+			const float* im2 = (downSampleImage == 1) ? guide[2].ptr<float>() : guideRes[2].ptr<float>();*/
 			const float* im0 = guide[0].ptr<float>();
 			const float* im1 = guide[1].ptr<float>();
 			const float* im2 = guide[2].ptr<float>();
-			for (int n = 0; n < img_size.area(); n += 8)
+			for (int n = 0; n < imsize; n += 8)
 			{
 				const __m256 mimage0 = _mm256_load_ps(im0 + n);
 				const __m256 mimage1 = _mm256_load_ps(im1 + n);
@@ -562,40 +592,10 @@ void ConstantTimeHDGF_SoftAssignmentSingle::computeWandAlpha(const std::vector<c
 }
 
 template<int flag>
-void ConstantTimeHDGF_SoftAssignmentSingle::split_blur_merge(cv::Mat& dst, const int k)
+void ConstantTimeHDGF_SoftAssignmentSingle::merge(cv::Mat& dst, const int k)
 {
-	float* src0 = nullptr;
-	float* src1 = nullptr;
-	float* src2 = nullptr;
-	src0 = vsrc[0].ptr<float>();
-	if (channels == 3)
-	{
-		src1 = vsrc[1].ptr<float>();
-		src2 = vsrc[2].ptr<float>();
-	}
-
-	float* inter0 = nullptr;
-	float* inter1 = nullptr;
-	float* inter2 = nullptr;
-	inter0 = split_inter[0].ptr<float>();
-	if (channels == 3)
-	{
-		inter1 = split_inter[1].ptr<float>();
-		inter2 = split_inter[2].ptr<float>();
-	}
-	float* vecw_ptr = vecW[k].ptr<float>();
-
 	if (channels == 1)
 	{
-		//split
-		for (int n = 0; n < img_size.area(); n += 8)
-		{
-			_mm256_store_ps(inter0 + n, _mm256_mul_ps(_mm256_load_ps(vecw_ptr + n), _mm256_load_ps(src0 + n)));
-		}
-		//blur
-		GF->filter(vecW[k], vecW[k], sigma_space, spatial_order);
-		GF->filter(split_inter[0], split_inter[0], sigma_space, spatial_order);
-
 		//merge
 		for (int y = boundaryLength; y < img_size.height - boundaryLength; y++)
 		{
@@ -636,52 +636,6 @@ void ConstantTimeHDGF_SoftAssignmentSingle::split_blur_merge(cv::Mat& dst, const
 	}
 	else if (channels == 3)
 	{
-		const bool isSplitBlurFusion = false;
-		if (isSplitBlurFusion)
-		{
-			for (int n = 0; n < img_size.area(); n += 8)
-			{
-				_mm256_store_ps(inter0 + n, _mm256_mul_ps(_mm256_load_ps(vecw_ptr + n), _mm256_load_ps(src0 + n)));
-			}
-			GF->filter(split_inter[0], split_inter[0], sigma_space, spatial_order);
-
-			for (int n = 0; n < img_size.area(); n += 8)
-			{
-				_mm256_store_ps(inter1 + n, _mm256_mul_ps(_mm256_load_ps(vecw_ptr + n), _mm256_load_ps(src1 + n)));
-			}
-			GF->filter(split_inter[1], split_inter[1], sigma_space, spatial_order);
-
-			for (int n = 0; n < img_size.area(); n += 8)
-			{
-				_mm256_store_ps(inter2 + n, _mm256_mul_ps(_mm256_load_ps(vecw_ptr + n), _mm256_load_ps(src2 + n)));
-			}
-			GF->filter(split_inter[2], split_inter[2], sigma_space, spatial_order);
-			GF->filter(vecW[k], vecW[k], sigma_space, spatial_order);
-		}
-		else
-		{
-			//split
-			for (int n = 0; n < img_size.area(); n += 8)
-			{
-				__m256 mvecw = _mm256_load_ps(vecw_ptr + n);
-				__m256 msrc0 = _mm256_load_ps(src0 + n);
-				__m256 msrc1 = _mm256_load_ps(src1 + n);
-				__m256 msrc2 = _mm256_load_ps(src2 + n);
-
-				_mm256_store_ps(inter0 + n, _mm256_mul_ps(mvecw, msrc0));
-				_mm256_store_ps(inter1 + n, _mm256_mul_ps(mvecw, msrc1));
-				_mm256_store_ps(inter2 + n, _mm256_mul_ps(mvecw, msrc2));
-			}
-
-			//blur
-			GF->filter(vecW[k], vecW[k], sigma_space, spatial_order);
-			GF->filter(split_inter[0], split_inter[0], sigma_space, spatial_order);
-			GF->filter(split_inter[1], split_inter[1], sigma_space, spatial_order);
-			GF->filter(split_inter[2], split_inter[2], sigma_space, spatial_order);
-		}
-
-
-		//merge
 		for (int y = boundaryLength; y < img_size.height - boundaryLength; y++)
 		{
 			const float* inter0 = split_inter[0].ptr<float>(y);
@@ -696,59 +650,24 @@ void ConstantTimeHDGF_SoftAssignmentSingle::split_blur_merge(cv::Mat& dst, const
 			float* dptr = dst.ptr<float>(y);//for flag==2
 			for (int x = boundaryLength; x < img_size.width - boundaryLength; x += 8)
 			{
-				const __m256 malpha = _mm256_loadu_ps(alpha_ptr + x);
-				const __m256 minterw = _mm256_loadu_ps(vecw_ptr + x);
-				const __m256 minter0 = _mm256_loadu_ps(inter0 + x);
-				const __m256 minter1 = _mm256_loadu_ps(inter1 + x);
-				const __m256 minter2 = _mm256_loadu_ps(inter2 + x);
-
+				const __m256 mrcpw = _mm256_mul_ps(_mm256_loadu_ps(alpha_ptr + x), _mm256_rcp_ps(_mm256_loadu_ps(vecw_ptr + x)));
 				if constexpr (flag == 0)
 				{
-					//_mm256_store_ps(numer0 + x, _mm256_mul_ps(malpha, _mm256_div_ps(minter0, minterw)));
-					//_mm256_store_ps(numer1 + x, _mm256_mul_ps(malpha, _mm256_div_ps(minter1, minterw)));
-					//_mm256_store_ps(numer2 + x, _mm256_mul_ps(malpha, _mm256_div_ps(minter2, minterw)));
-					const __m256 mrcpw = _mm256_mul_ps(malpha, _mm256_rcp_ps(minterw));
-					_mm256_store_ps(numer0 + x, _mm256_mul_ps(minter0, mrcpw));
-					_mm256_store_ps(numer1 + x, _mm256_mul_ps(minter1, mrcpw));
-					_mm256_store_ps(numer2 + x, _mm256_mul_ps(minter2, mrcpw));
+					_mm256_store_ps(numer0 + x, _mm256_mul_ps(_mm256_loadu_ps(inter0 + x), mrcpw));
+					_mm256_store_ps(numer1 + x, _mm256_mul_ps(_mm256_loadu_ps(inter1 + x), mrcpw));
+					_mm256_store_ps(numer2 + x, _mm256_mul_ps(_mm256_loadu_ps(inter2 + x), mrcpw));
 				}
 				else if constexpr (flag == 1)
 				{
-					const __m256 mnumer_0 = _mm256_loadu_ps(numer0 + x);
-					const __m256 mnumer_1 = _mm256_loadu_ps(numer1 + x);
-					const __m256 mnumer_2 = _mm256_loadu_ps(numer2 + x);
-
-					//_mm256_store_ps(numer0 + x, _mm256_fmadd_ps(malpha, _mm256_div_ps(minter0, minterw), mnumer_0));
-					//_mm256_store_ps(numer1 + x, _mm256_fmadd_ps(malpha, _mm256_div_ps(minter1, minterw), mnumer_1));
-					//_mm256_store_ps(numer2 + x, _mm256_fmadd_ps(malpha, _mm256_div_ps(minter2, minterw), mnumer_2));
-					//_mm256_store_ps(numer0 + x, _mm256_fmadd_ps(malpha, _mm256_div_avoidzerodiv_ps(minter0, minterw), mnumer_0));
-					//_mm256_store_ps(numer1 + x, _mm256_fmadd_ps(malpha, _mm256_div_avoidzerodiv_ps(minter1, minterw), mnumer_1));
-					//_mm256_store_ps(numer2 + x, _mm256_fmadd_ps(malpha, _mm256_div_avoidzerodiv_ps(minter2, minterw), mnumer_2));
-					const __m256 mrcpw = _mm256_mul_ps(malpha, _mm256_rcp_ps(minterw));
-					//const __m256 mrcpw = _mm256_mul_ps(malpha, _mm256_div_ps(_mm256_set1_ps(1.f), minterw));
-					_mm256_store_ps(numer0 + x, _mm256_fmadd_ps(minter0, mrcpw, mnumer_0));
-					_mm256_store_ps(numer1 + x, _mm256_fmadd_ps(minter1, mrcpw, mnumer_1));
-					_mm256_store_ps(numer2 + x, _mm256_fmadd_ps(minter2, mrcpw, mnumer_2));
+					_mm256_store_ps(numer0 + x, _mm256_fmadd_ps(_mm256_loadu_ps(inter0 + x), mrcpw, _mm256_loadu_ps(numer0 + x)));
+					_mm256_store_ps(numer1 + x, _mm256_fmadd_ps(_mm256_loadu_ps(inter1 + x), mrcpw, _mm256_loadu_ps(numer1 + x)));
+					_mm256_store_ps(numer2 + x, _mm256_fmadd_ps(_mm256_loadu_ps(inter2 + x), mrcpw, _mm256_loadu_ps(numer2 + x)));
 				}
 				else if constexpr (flag == 2)
 				{
-					const __m256 mnumer_0 = _mm256_loadu_ps(numer0 + x);
-					const __m256 mnumer_1 = _mm256_loadu_ps(numer1 + x);
-					const __m256 mnumer_2 = _mm256_loadu_ps(numer2 + x);
-
-					//__m256 mb = _mm256_fmadd_ps(malpha, _mm256_div_ps(minter0, mvecw), mnumer_0);
-					//__m256 mg = _mm256_fmadd_ps(malpha, _mm256_div_ps(minter1, mvecw), mnumer_1);
-					//__m256 mr = _mm256_fmadd_ps(malpha, _mm256_div_ps(minter2, mvecw), mnumer_2);
-
-					//__m256 mb = _mm256_fmadd_ps(malpha, _mm256_div_avoidzerodiv_ps(minter0, minterw), mnumer_0);
-					//__m256 mg = _mm256_fmadd_ps(malpha, _mm256_div_avoidzerodiv_ps(minter1, minterw), mnumer_1);
-					//__m256 mr = _mm256_fmadd_ps(malpha, _mm256_div_avoidzerodiv_ps(minter2, minterw), mnumer_2);
-
-					const __m256 mrcpw = _mm256_mul_ps(malpha, _mm256_rcp_ps(minterw));
-					__m256 mb = _mm256_fmadd_ps(minter0, mrcpw, mnumer_0);
-					__m256 mg = _mm256_fmadd_ps(minter1, mrcpw, mnumer_1);
-					__m256 mr = _mm256_fmadd_ps(minter2, mrcpw, mnumer_2);
-
+					const __m256 mb = _mm256_fmadd_ps(_mm256_loadu_ps(inter0 + x), mrcpw, _mm256_loadu_ps(numer0 + x));
+					const __m256 mg = _mm256_fmadd_ps(_mm256_loadu_ps(inter1 + x), mrcpw, _mm256_loadu_ps(numer1 + x));
+					const __m256 mr = _mm256_fmadd_ps(_mm256_loadu_ps(inter2 + x), mrcpw, _mm256_loadu_ps(numer2 + x));
 					_mm256_store_ps_color(dptr + 3 * x, mb, mg, mr);
 				}
 			}
@@ -756,48 +675,8 @@ void ConstantTimeHDGF_SoftAssignmentSingle::split_blur_merge(cv::Mat& dst, const
 	}
 	else
 	{
-		const bool isSplitBlurFusion = true;
-		cv::AutoBuffer<float*> srcp(channels);
 		cv::AutoBuffer<float*> intp(channels);
 		cv::AutoBuffer<float*> nump(channels);
-		for (int c = 0; c < channels; c++)
-		{
-			srcp[c] = vsrc[c].ptr<float>();
-			intp[c] = split_inter[c].ptr<float>();
-		}
-		if (isSplitBlurFusion)
-		{
-			//split-blur fusion
-			for (int c = 0; c < channels; c++)
-			{
-				for (int n = 0; n < img_size.area(); n += 8)
-				{
-					_mm256_store_ps(intp[c] + n, _mm256_mul_ps(_mm256_load_ps(vecw_ptr + n), _mm256_load_ps(srcp[c] + n)));
-				}
-				GF->filter(split_inter[c], split_inter[c], sigma_space, spatial_order);
-			}
-			//blur
-			GF->filter(vecW[k], vecW[k], sigma_space, spatial_order);
-		}
-		else
-		{
-			//split
-			for (int n = 0; n < img_size.area(); n += 8)
-			{
-				const __m256 mvecw = _mm256_load_ps(vecw_ptr + n);
-				for (int c = 0; c < channels; c++)
-				{
-					_mm256_store_ps(intp[c] + n, _mm256_mul_ps(mvecw, _mm256_load_ps(srcp[c] + n)));
-				}
-			}
-			//blur
-			GF->filter(vecW[k], vecW[k], sigma_space, spatial_order);
-			for (int c = 0; c < channels; c++)
-			{
-				GF->filter(split_inter[c], split_inter[c], sigma_space, spatial_order);
-			}
-		}
-
 		//merge
 		for (int y = boundaryLength; y < img_size.height - boundaryLength; y++)
 		{
@@ -814,10 +693,11 @@ void ConstantTimeHDGF_SoftAssignmentSingle::split_blur_merge(cv::Mat& dst, const
 			{
 				const __m256 malpha = _mm256_loadu_ps(alpha_ptr + x);
 				const __m256 minterw = _mm256_loadu_ps(vecw_ptr + x);
-
+				const __m256 mrcpw = _mm256_mul_ps(malpha, _mm256_rcp_ps(minterw));
+				//__m256 mr = _mm256_fmadd_ps(malpha, _mm256_div_ps(minter2, mvecw), mnumer_2);
+				//__m256 mb = _mm256_fmadd_ps(malpha, _mm256_div_avoidzerodiv_ps(minter0, minterw), mnumer_0);
 				if constexpr (flag == 0)
 				{
-					const __m256 mrcpw = _mm256_mul_ps(malpha, _mm256_rcp_ps(minterw));
 					for (int c = 0; c < channels; c++)
 					{
 						_mm256_store_ps(nump[c] + x, _mm256_mul_ps(_mm256_loadu_ps(intp[c] + x), mrcpw));
@@ -825,7 +705,6 @@ void ConstantTimeHDGF_SoftAssignmentSingle::split_blur_merge(cv::Mat& dst, const
 				}
 				else if constexpr (flag == 1)
 				{
-					const __m256 mrcpw = _mm256_mul_ps(malpha, _mm256_rcp_ps(minterw));
 					for (int c = 0; c < channels; c++)
 					{
 						_mm256_store_ps(nump[c] + x, _mm256_fmadd_ps(_mm256_loadu_ps(intp[c] + x), mrcpw, _mm256_loadu_ps(nump[c] + x)));
@@ -833,19 +712,183 @@ void ConstantTimeHDGF_SoftAssignmentSingle::split_blur_merge(cv::Mat& dst, const
 				}
 				else if constexpr (flag == 2)
 				{
-					//__m256 mr = _mm256_fmadd_ps(malpha, _mm256_div_ps(minter2, mvecw), mnumer_2);
-					//__m256 mb = _mm256_fmadd_ps(malpha, _mm256_div_avoidzerodiv_ps(minter0, minterw), mnumer_0);
-					const __m256 mrcpw = _mm256_mul_ps(malpha, _mm256_rcp_ps(minterw));
 					for (int c = 0; c < channels; c++)
 					{
 						__m256 dst = _mm256_fmadd_ps(_mm256_loadu_ps(intp[c] + x), mrcpw, _mm256_loadu_ps(nump[c] + x));
-						for (int s = 0; s < 8; s++)
-							dptr[channels * (x + s) + c] = dst.m256_f32[s];
+						//for (int s = 0; s < 8; s++) dptr[channels * (x + s) + c] = dst.m256_f32[s];
+						dptr[channels * (x + 0) + c] = dst.m256_f32[0];
+						dptr[channels * (x + 1) + c] = dst.m256_f32[1];
+						dptr[channels * (x + 2) + c] = dst.m256_f32[2];
+						dptr[channels * (x + 3) + c] = dst.m256_f32[3];
+						dptr[channels * (x + 4) + c] = dst.m256_f32[4];
+						dptr[channels * (x + 5) + c] = dst.m256_f32[5];
+						dptr[channels * (x + 6) + c] = dst.m256_f32[6];
+						dptr[channels * (x + 7) + c] = dst.m256_f32[7];
 					}
 				}
 			}
 		}
 	}
+}
+
+void multiply32f(const cv::Mat& src1, const cv::Mat& src2, cv::Mat& dst)
+{
+	if (dst.size() != src1.size())dst.create(src1.size(), CV_32F);
+	const int SIZE = src1.size().area();
+	const int SIZE32 = get_simd_floor(SIZE, 32);
+	const float* s1 = src1.ptr<float>();
+	const float* s2 = src2.ptr<float>();
+	float* d = dst.ptr<float>();
+	for (int i = 0; i < SIZE32; i += 32)
+	{
+		_mm256_store_ps(d + i + 0, _mm256_mul_ps(_mm256_load_ps(s1 + i + 0), _mm256_load_ps(s2 + i + 0)));
+		_mm256_store_ps(d + i + 8, _mm256_mul_ps(_mm256_load_ps(s1 + i + 8), _mm256_load_ps(s2 + i + 8)));
+		_mm256_store_ps(d + i + 16, _mm256_mul_ps(_mm256_load_ps(s1 + i + 16), _mm256_load_ps(s2 + i + 16)));
+		_mm256_store_ps(d + i + 24, _mm256_mul_ps(_mm256_load_ps(s1 + i + 24), _mm256_load_ps(s2 + i + 24)));
+	}
+	for (int i = SIZE32; i < SIZE; i += 8)
+	{
+		_mm256_store_ps(d + i, _mm256_mul_ps(_mm256_load_ps(s1 + i), _mm256_load_ps(s2 + i)));
+	}
+}
+
+template<int flag>
+void ConstantTimeHDGF_SoftAssignmentSingle::split_blur_merge(cv::Mat& dst, const int k)
+{
+	float* vecw_ptr = vecW[k].ptr<float>();
+
+	if (channels == 1)
+	{
+		//split
+		//blur
+		multiply32f(vsrc[0], vecW[k], split_inter[0]);
+		GF->filter(vecW[k], vecW[k], sigma_space, spatial_order);
+		GF->filter(split_inter[0], split_inter[0], sigma_space, spatial_order);
+	}
+	else if (channels == 3)
+	{
+		const bool isSplitBlurFusion = true;
+		if (isSplitBlurFusion)
+		{
+			if (downSampleImage != 1)
+			{
+				const double res = 1.0 / downSampleImage;
+				cv::Mat w = downsampleSRC[0];
+				cv::Mat conv = downsampleSRC[1];
+				const double dss = sigma_space * res;
+				resize(vecW[k], w, cv::Size(), res, res, cv::INTER_AREA);
+				for (int c = 0; c < channels; c++)
+				{
+					multiply32f(vsrcRes[c], w, conv);
+					GF->filter(conv, conv, dss, spatial_order, borderType);
+					resize(conv, split_inter[c], cv::Size(), downSampleImage, downSampleImage, cv::INTER_LINEAR);
+				}
+				GF->filter(w, w, dss, spatial_order, borderType);
+				resize(w, vecW[k], cv::Size(), downSampleImage, downSampleImage, cv::INTER_LINEAR);
+		
+				//resize(alpha[k], w, cv::Size(), res, res, cv::INTER_AREA);
+				//resize(w, alpha[k], cv::Size(), downSampleImage, downSampleImage, cv::INTER_LINEAR);
+				//GF->filter(vecW[k], vecW[k], sigma_space, spatial_order, borderType);
+			}
+			else
+			{
+				for (int c = 0; c < channels; c++)
+				{
+					multiply32f(vsrc[c], vecW[k], split_inter[c]);
+					GF->filter(split_inter[c], split_inter[c], sigma_space, spatial_order, borderType);
+				}
+				GF->filter(vecW[k], vecW[k], sigma_space, spatial_order, borderType);
+			}
+		}
+		else
+		{
+			float* src0 = vsrc[0].ptr<float>();
+			float* src1 = vsrc[1].ptr<float>();
+			float* src2 = vsrc[2].ptr<float>();
+			float* inter0 = split_inter[0].ptr<float>();
+			float* inter1 = split_inter[1].ptr<float>();
+			float* inter2 = split_inter[2].ptr<float>();
+			//split
+			for (int n = 0; n < img_size.area(); n += 8)
+			{
+				__m256 mvecw = _mm256_load_ps(vecw_ptr + n);
+				__m256 msrc0 = _mm256_load_ps(src0 + n);
+				__m256 msrc1 = _mm256_load_ps(src1 + n);
+				__m256 msrc2 = _mm256_load_ps(src2 + n);
+
+				_mm256_store_ps(inter0 + n, _mm256_mul_ps(mvecw, msrc0));
+				_mm256_store_ps(inter1 + n, _mm256_mul_ps(mvecw, msrc1));
+				_mm256_store_ps(inter2 + n, _mm256_mul_ps(mvecw, msrc2));
+			}
+
+			//blur
+			GF->filter(vecW[k], vecW[k], sigma_space, spatial_order, borderType);
+			GF->filter(split_inter[0], split_inter[0], sigma_space, spatial_order, borderType);
+			GF->filter(split_inter[1], split_inter[1], sigma_space, spatial_order, borderType);
+			GF->filter(split_inter[2], split_inter[2], sigma_space, spatial_order, borderType);
+		}
+	}
+	else
+	{
+		const bool isSplitBlurFusion = true;
+		cv::AutoBuffer<float*> srcp(channels);
+		cv::AutoBuffer<float*> intp(channels);
+
+		for (int c = 0; c < channels; c++)
+		{
+			srcp[c] = vsrc[c].ptr<float>();
+			intp[c] = split_inter[c].ptr<float>();
+		}
+		if (isSplitBlurFusion)
+		{
+			if (downSampleImage != 1)
+			{
+				const double res = 1.0 / downSampleImage;
+				cv::Mat w = downsampleSRC[0];
+				cv::Mat conv = downsampleSRC[1];
+
+				resize(vecW[k], w, cv::Size(), res, res, cv::INTER_AREA);
+				for (int c = 0; c < channels; c++)
+				{
+					multiply32f(vsrcRes[c], w, conv);
+					GF->filter(conv, conv, sigma_space * res, spatial_order, borderType);
+					resize(conv, split_inter[c], cv::Size(), downSampleImage, downSampleImage, cv::INTER_LINEAR);
+				}
+				GF->filter(w, w, sigma_space * res, spatial_order, borderType);
+				resize(w, vecW[k], cv::Size(), downSampleImage, downSampleImage, cv::INTER_LINEAR);
+				//GF->filter(vecW[k], vecW[k], sigma_space, spatial_order, borderType);
+			}
+			else
+			{
+				for (int c = 0; c < channels; c++)
+				{
+					multiply32f(vsrc[c], vecW[k], split_inter[c]);
+					GF->filter(split_inter[c], split_inter[c], sigma_space, spatial_order, borderType);
+				}
+				GF->filter(vecW[k], vecW[k], sigma_space, spatial_order, borderType);
+			}
+		}
+		else
+		{
+			//split
+			for (int n = 0; n < img_size.area(); n += 8)
+			{
+				const __m256 mvecw = _mm256_load_ps(vecw_ptr + n);
+				for (int c = 0; c < channels; c++)
+				{
+					_mm256_store_ps(intp[c] + n, _mm256_mul_ps(mvecw, _mm256_load_ps(srcp[c] + n)));
+				}
+			}
+			//blur
+			GF->filter(vecW[k], vecW[k], sigma_space, spatial_order, borderType);
+			for (int c = 0; c < channels; c++)
+			{
+				GF->filter(split_inter[c], split_inter[c], sigma_space, spatial_order, borderType);
+			}
+		}
+	}
+
+	merge<flag>(dst, k);
 }
 
 void ConstantTimeHDGF_SoftAssignmentSingle::body(const std::vector<cv::Mat>& src, cv::Mat& dst, const std::vector<cv::Mat>& guide)
@@ -860,20 +903,20 @@ void ConstantTimeHDGF_SoftAssignmentSingle::body(const std::vector<cv::Mat>& src
 	}
 
 	{
-		downsampleImage();
+		downsampleImage(src, vsrcRes, guide, vguideRes, downsampleImageMethod);
 	}
 
 	{
 		//cp::Timer t("compute alpha");
 		if (guide.empty())
 		{
-			if (isUseFmath) computeWandAlpha<1>(src);//K*imsize
-			else computeWandAlpha<0>(src);
+			if (isUseFmath) computeWandAlpha<1>(src, vsrcRes);//K*imsize
+			else computeWandAlpha<0>(src, vsrcRes);
 		}
 		else
 		{
-			if (isUseFmath) computeWandAlpha<1>(guide);//K*imsize
-			else computeWandAlpha<0>(guide);
+			if (isUseFmath) computeWandAlpha<1>(guide, vguideRes);//K*imsize
+			else computeWandAlpha<0>(guide, vguideRes);
 		}
 	}
 	{
@@ -885,9 +928,4 @@ void ConstantTimeHDGF_SoftAssignmentSingle::body(const std::vector<cv::Mat>& src
 			else split_blur_merge<1>(dst, k);
 		}
 	}
-}
-
-void ConstantTimeHDGF_SoftAssignmentSingle::setLambdaInterpolation(const float lambda)
-{
-	this->lambda = lambda;
 }
