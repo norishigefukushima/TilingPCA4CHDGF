@@ -422,7 +422,7 @@ void testClusteringCBF_SpringerNature(string wname)
 	//src[0] = imread("img/lenna.png");
 
 	//cv::Size division(16, 16);
-	cv::Size division(8, 8);
+	cv::Size division(4, 4);
 	//cv::Size division(8, 4);
 	//cv::Size division(4, 4);
 	//cv::Size division(8, 4);
@@ -436,8 +436,8 @@ void testClusteringCBF_SpringerNature(string wname)
 	//int methodHDGF = HSI;
 	//int methodHDGF = NLM;
 	createTrackbar("HDGF method", wname2, &methodHDGF, 5);
-	int clusteringHDGFMethod = 0; //interpolation
-	//int clusteringHDGFMethod = 1; //Nystrom
+	//int clusteringHDGFMethod = 0; //interpolation
+	int clusteringHDGFMethod = 1; //Nystrom
 	//int clusteringHDGFMethod = 2; //soft
 	createTrackbar("clusteringHDGF", wname2, &clusteringHDGFMethod, 2);
 
