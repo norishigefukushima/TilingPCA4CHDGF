@@ -683,78 +683,186 @@ void ConstantTimeHDGF_InterpolationSingle::mergeRecomputeAlphaForUsingMu(std::ve
 
 	if (channels == 3)
 	{
-		if (isInit)
+		for (int y = boundaryLength; y < h - boundaryLength; y++)
 		{
-			for (int y = boundaryLength; y < h - boundaryLength; y++)
+			const __m256* src0 = (const __m256*)src[0].ptr<float>(y, boundaryLength);
+			const __m256* src1 = (const __m256*)src[1].ptr<float>(y, boundaryLength);
+			const __m256* src2 = (const __m256*)src[2].ptr<float>(y, boundaryLength);
+			const __m256* inter0 = (const __m256*)intermat[0].ptr<float>(y, boundaryLength);
+			const __m256* inter1 = (const __m256*)intermat[1].ptr<float>(y, boundaryLength);
+			const __m256* inter2 = (const __m256*)intermat[2].ptr<float>(y, boundaryLength);
+			const __m256* interw = (const __m256*)intermat[3].ptr<float>(y, boundaryLength);
+
+			__m256* numer0 = (__m256*)numer[0].ptr<float>(y, boundaryLength);
+			__m256* numer1 = (__m256*)numer[1].ptr<float>(y, boundaryLength);
+			__m256* numer2 = (__m256*)numer[2].ptr<float>(y, boundaryLength);
+			__m256* denom_ = (__m256*)denom.ptr<float>(y, boundaryLength);
+
+			for (int x = boundaryLength; x < w - boundaryLength; x += 8)
 			{
-				const __m256* src0 = (const __m256*)src[0].ptr<float>(y, boundaryLength);
-				const __m256* src1 = (const __m256*)src[1].ptr<float>(y, boundaryLength);
-				const __m256* src2 = (const __m256*)src[2].ptr<float>(y, boundaryLength);
-				const __m256* inter0 = (const __m256*)intermat[0].ptr<float>(y, boundaryLength);
-				const __m256* inter1 = (const __m256*)intermat[1].ptr<float>(y, boundaryLength);
-				const __m256* inter2 = (const __m256*)intermat[2].ptr<float>(y, boundaryLength);
-				const __m256* interw = (const __m256*)intermat[3].ptr<float>(y, boundaryLength);
+				const __m256 norm = _mm256_div_avoidzerodiv_ps(_mm256_set1_ps(1.f), *interw);
 
-				__m256* numer0 = (__m256*)numer[0].ptr<float>(y, boundaryLength);
-				__m256* numer1 = (__m256*)numer[1].ptr<float>(y, boundaryLength);
-				__m256* numer2 = (__m256*)numer[2].ptr<float>(y, boundaryLength);
-				__m256* denom_ = (__m256*)denom.ptr<float>(y, boundaryLength);
+				__m256 msub = _mm256_fnmadd_ps(*inter0, norm, *src0++);
+				__m256 mdiff = _mm256_mul_ps(msub, msub);
+				msub = _mm256_fnmadd_ps(*inter1, norm, *src1++);
+				mdiff = _mm256_fmadd_ps(msub, msub, mdiff);
+				msub = _mm256_fnmadd_ps(*inter2, norm, *src2++);
+				mdiff = _mm256_fmadd_ps(msub, msub, mdiff);
 
-				for (int x = boundaryLength; x < w - boundaryLength; x += 8)
+				const __m256 malpha = v_exp_ps<use_fmath>(_mm256_mul_ps(mcoef, mdiff));
+
+				if constexpr (isInit)
 				{
-					const __m256 norm = _mm256_div_avoidzerodiv_ps(_mm256_set1_ps(1.f), *interw);
-
-					__m256 msub = _mm256_fnmadd_ps(*inter0, norm, *src0++);
-					__m256 mdiff = _mm256_mul_ps(msub, msub);
-					msub = _mm256_fnmadd_ps(*inter1, norm, *src1++);
-					mdiff = _mm256_fmadd_ps(msub, msub, mdiff);
-					msub = _mm256_fnmadd_ps(*inter2, norm, *src2++);
-					mdiff = _mm256_fmadd_ps(msub, msub, mdiff);
-
-					const __m256 malpha = v_exp_ps<use_fmath>(_mm256_mul_ps(mcoef, mdiff));
-
 					*numer0++ = _mm256_mul_ps(malpha, *inter0++);
 					*numer1++ = _mm256_mul_ps(malpha, *inter1++);
 					*numer2++ = _mm256_mul_ps(malpha, *inter2++);
 					*denom_++ = _mm256_mul_ps(malpha, *interw++);
 				}
-			}
-		}
-		else
-		{
-			for (int y = boundaryLength; y < h - boundaryLength; y++)
-			{
-				const __m256* src0 = (const __m256*)src[0].ptr<float>(y, boundaryLength);
-				const __m256* src1 = (const __m256*)src[1].ptr<float>(y, boundaryLength);
-				const __m256* src2 = (const __m256*)src[2].ptr<float>(y, boundaryLength);
-				const __m256* inter0 = (const __m256*)intermat[0].ptr<float>(y, boundaryLength);
-				const __m256* inter1 = (const __m256*)intermat[1].ptr<float>(y, boundaryLength);
-				const __m256* inter2 = (const __m256*)intermat[2].ptr<float>(y, boundaryLength);
-				const __m256* interw = (const __m256*)intermat[3].ptr<float>(y, boundaryLength);
-
-				__m256* numer0 = (__m256*)numer[0].ptr<float>(y, boundaryLength);
-				__m256* numer1 = (__m256*)numer[1].ptr<float>(y, boundaryLength);
-				__m256* numer2 = (__m256*)numer[2].ptr<float>(y, boundaryLength);
-				__m256* denom_ = (__m256*)denom.ptr<float>(y, boundaryLength);
-
-				for (int x = boundaryLength; x < w - boundaryLength; x += 8)
+				else
 				{
-					const __m256 norm = _mm256_div_avoidzerodiv_ps(_mm256_set1_ps(1.f), *interw);
-
-					__m256 msub = _mm256_fnmadd_ps(*inter0, norm, *src0++);
-					__m256 mdiff = _mm256_mul_ps(msub, msub);
-					msub = _mm256_fnmadd_ps(*inter1, norm, *src1++);
-					mdiff = _mm256_fmadd_ps(msub, msub, mdiff);
-					msub = _mm256_fnmadd_ps(*inter2, norm, *src2++);
-					mdiff = _mm256_fmadd_ps(msub, msub, mdiff);
-
-					const __m256 malpha = v_exp_ps<use_fmath>(_mm256_mul_ps(mcoef, mdiff));
-
 					*numer0++ = _mm256_fmadd_ps(malpha, *inter0++, *numer0);
 					*numer1++ = _mm256_fmadd_ps(malpha, *inter1++, *numer1);
 					*numer2++ = _mm256_fmadd_ps(malpha, *inter2++, *numer2);
 					*denom_++ = _mm256_fmadd_ps(malpha, *interw++, *denom_);
 				}
+			}
+		}
+	}
+	else
+	{
+		AutoBuffer<const __m256*> msrc(channels);
+		AutoBuffer<const __m256*> minter(channels);
+		AutoBuffer<__m256*> mnumer(channels);
+
+		for (int y = boundaryLength; y < h - boundaryLength; y++)
+		{
+			for (int c = 0; c < channels; c++) msrc[c] = (const __m256*)src[c].ptr<float>(y, boundaryLength);
+			for (int c = 0; c < channels; c++) minter[c] = (const __m256*)intermat[c].ptr<float>(y, boundaryLength);
+			const __m256* minterw = (const __m256*)intermat[channels].ptr<float>(y, boundaryLength);
+
+			for (int c = 0; c < channels; c++)  mnumer[c] = (__m256*)numer[c].ptr<float>(y, boundaryLength);
+			__m256* mdenom = (__m256*)denom.ptr<float>(y, boundaryLength);
+
+			for (int x = boundaryLength; x < w - boundaryLength; x += 8)
+			{
+				const __m256 norm = _mm256_div_avoidzerodiv_ps(_mm256_set1_ps(1.f), *minterw);
+
+				__m256 msub = _mm256_fnmadd_ps(*minter[0], norm, *msrc[0]++);
+				__m256 mdiff = _mm256_mul_ps(msub, msub);
+				for (int c = 1; c < channels; c++)
+				{
+					msub = _mm256_fnmadd_ps(*minter[c], norm, *msrc[c]++);
+					mdiff = _mm256_fmadd_ps(msub, msub, mdiff);
+				}
+
+				const __m256 malpha = v_exp_ps<use_fmath>(_mm256_mul_ps(mcoef, mdiff));
+
+				if constexpr (isInit)
+				{
+					for (int c = 0; c < channels; c++)
+					{
+						*mnumer[c]++ = _mm256_mul_ps(malpha, *minter[c]++);
+					}
+					*mdenom++ = _mm256_mul_ps(malpha, *minterw++);
+				}
+				else
+				{
+					for (int c = 0; c < channels; c++)
+					{
+						*mnumer[c]++ = _mm256_fmadd_ps(malpha, *minter[c]++, *mnumer[c]);
+					}
+					*mdenom++ = _mm256_fmadd_ps(malpha, *minterw++, *mdenom);
+				}
+			}
+		}
+	}
+}
+
+template<int use_fmath, const bool isInit>
+void ConstantTimeHDGF_InterpolationSingle::mergeRecomputeAlphaForUsingNLMMu(std::vector<cv::Mat>& src, const int k)
+{
+	if (isJoint)
+	{
+		//std::cout << "ConstantTimeHDGF_InterpolationSingle::recomputeAlpha must be src==guide" << std::endl;
+	//	CV_Assert(!isJoint);
+	}
+
+	const int w = src[0].cols;
+	const int h = src[0].rows;
+
+	const float coeff = float(-1.0 / (2.0 * sigma_range * sigma_range));
+	const __m256 mcoef = _mm256_set1_ps(coeff);
+
+	const int wk = isWRedunductLoadDecomposition ? 0 : k;
+
+	vector<Mat> intermat(channels + 1);
+	mergeNumerDenomMat(intermat, k, downSampleImage);
+
+	if (channels == 3)
+	{
+		for (int y = boundaryLength; y < h - boundaryLength; y++)
+		{
+			const int step = src[0].cols;
+			const float* src0 = src[0].ptr<float>(y, boundaryLength);
+			const float* src1 = src[1].ptr<float>(y, boundaryLength);
+			const float* src2 = src[2].ptr<float>(y, boundaryLength);
+			const float* inter0 = intermat[0].ptr<float>(y, boundaryLength);
+			const float* inter1 = intermat[1].ptr<float>(y, boundaryLength);
+			const float* inter2 = intermat[2].ptr<float>(y, boundaryLength);
+			const float* interw = intermat[3].ptr<float>(y, boundaryLength);
+
+			__m256* numer0 = (__m256*)numer[0].ptr<float>(y, boundaryLength);
+			__m256* numer1 = (__m256*)numer[1].ptr<float>(y, boundaryLength);
+			__m256* numer2 = (__m256*)numer[2].ptr<float>(y, boundaryLength);
+			__m256* denom_ = (__m256*)denom.ptr<float>(y, boundaryLength);
+			const int r = 0;
+			const __m256 mones = _mm256_set1_ps(1.f);
+			for (int x = boundaryLength; x < w - boundaryLength; x += 8)
+			{
+				__m256 mdiff = _mm256_setzero_ps();
+				for (int v = -r; v <= r; v++)
+				{
+					for (int h = -r; h <= r; h++)
+					{
+						const int id = v * step + h;
+						const __m256 norm = _mm256_div_avoidzerodiv_ps(mones, _mm256_loadu_ps(interw + id));
+						//const __m256 norm = _mm256_div_zerodivzero_ps(mones, _mm256_loadu_ps(interw + id));
+						//const __m256 norm = _mm256_div_ps(mones, _mm256_loadu_ps(interw + id));
+
+						__m256 msub = _mm256_fnmadd_ps(_mm256_loadu_ps(inter0 + id), norm, _mm256_loadu_ps(src0 + id));
+						mdiff = _mm256_fmadd_ps(msub, msub, mdiff);
+						msub = _mm256_fnmadd_ps(_mm256_loadu_ps(inter1 + id), norm, _mm256_loadu_ps(src1 + id));
+						mdiff = _mm256_fmadd_ps(msub, msub, mdiff);
+						msub = _mm256_fnmadd_ps(_mm256_loadu_ps(inter2 + id), norm, _mm256_loadu_ps(src2 + id));
+						mdiff = _mm256_fmadd_ps(msub, msub, mdiff);
+					}
+				}
+				mdiff =_mm256_mul_ps(mdiff, _mm256_set1_ps(9.f));
+				
+				const __m256 malpha = v_exp_ps<use_fmath>(_mm256_mul_ps(mcoef, mdiff));
+
+				if constexpr (isInit)
+				{
+					*numer0++ = _mm256_mul_ps(malpha, _mm256_load_ps(inter0));
+					*numer1++ = _mm256_mul_ps(malpha, _mm256_load_ps(inter1));
+					*numer2++ = _mm256_mul_ps(malpha, _mm256_load_ps(inter2));
+					*denom_++ = _mm256_mul_ps(malpha, _mm256_load_ps(interw));
+				}
+				else
+				{
+					*numer0++ = _mm256_fmadd_ps(malpha, _mm256_load_ps(inter0), *numer0);
+					*numer1++ = _mm256_fmadd_ps(malpha, _mm256_load_ps(inter1), *numer1);
+					*numer2++ = _mm256_fmadd_ps(malpha, _mm256_load_ps(inter2), *numer2);
+					*denom_++ = _mm256_fmadd_ps(malpha, _mm256_load_ps(interw), *denom_);
+				}
+
+				src0 += 8;
+				src1 += 8;
+				src2 += 8;
+				inter0 += 8;
+				inter1 += 8;
+				inter2 += 8;
+				interw += 8;
 			}
 		}
 	}
@@ -947,7 +1055,7 @@ void ConstantTimeHDGF_InterpolationSingle::mergeRecomputeAlphaForUsingMuPCA(std:
 
 				const __m256 malpha = v_exp_ps<use_fmath>(_mm256_mul_ps(mcoef, mdiff));
 
-				if constexpr(isInit)
+				if constexpr (isInit)
 				{
 					*mnumer0++ = _mm256_mul_ps(malpha, *minter0++);
 					*mdenom_++ = _mm256_mul_ps(malpha, *minterw++);
@@ -988,7 +1096,7 @@ void ConstantTimeHDGF_InterpolationSingle::mergeRecomputeAlphaForUsingMuPCA(std:
 				__m256 mdiff = _mm256_mul_ps(msub, msub);
 
 				const __m256 malpha = v_exp_ps<use_fmath>(_mm256_mul_ps(mcoef, mdiff));
-				if constexpr(isInit)
+				if constexpr (isInit)
 				{
 					*mnumer0++ = _mm256_mul_ps(malpha, *minter0++);
 					*mnumer1++ = _mm256_mul_ps(malpha, *minter1++);
@@ -1038,7 +1146,7 @@ void ConstantTimeHDGF_InterpolationSingle::mergeRecomputeAlphaForUsingMuPCA(std:
 				mdiff = _mm256_fmadd_ps(msub, msub, mdiff);
 
 				const __m256 malpha = v_exp_ps<use_fmath>(_mm256_mul_ps(mcoef, mdiff));
-				if constexpr(isInit)
+				if constexpr (isInit)
 				{
 					*mnumer0++ = _mm256_mul_ps(malpha, *minter0++);
 					*mnumer1++ = _mm256_mul_ps(malpha, *minter1++);
@@ -1885,18 +1993,36 @@ void ConstantTimeHDGF_InterpolationSingle::merge(const int k, const bool isInit)
 {
 	//merge
 	//if (isUseLocalMu && (!isJoint))
-	if (isUseLocalMu)
+	if (isUseLocalMu&& (statePCA != 2))
 	{
 		//std::cout << "here: using local mu" << std::endl;
-		if (isInit)
+		const bool isNLM = false;
+
+		if (isNLM)
 		{
-			if (isUseFmath) mergeRecomputeAlphaForUsingMu<1, true>(vsrc, k);
-			else mergeRecomputeAlphaForUsingMu<0, true>(vsrc, k);
+			if (isInit)
+			{
+				if (isUseFmath) mergeRecomputeAlphaForUsingNLMMu<1, true>(vsrc, k);
+				else mergeRecomputeAlphaForUsingNLMMu<0, true>(vsrc, k);
+			}
+			else
+			{
+				if (isUseFmath) mergeRecomputeAlphaForUsingNLMMu<1, false>(vsrc, k);
+				else mergeRecomputeAlphaForUsingNLMMu<0, false>(vsrc, k);
+			}
 		}
 		else
 		{
-			if (isUseFmath) mergeRecomputeAlphaForUsingMu<1, false>(vsrc, k);
-			else mergeRecomputeAlphaForUsingMu<0, false>(vsrc, k);
+			if (isInit)
+			{
+				if (isUseFmath) mergeRecomputeAlphaForUsingMu<1, true>(vsrc, k);
+				else mergeRecomputeAlphaForUsingMu<0, true>(vsrc, k);
+			}
+			else
+			{
+				if (isUseFmath) mergeRecomputeAlphaForUsingMu<1, false>(vsrc, k);
+				else mergeRecomputeAlphaForUsingMu<0, false>(vsrc, k);
+			}
 		}
 	}
 	else if (isUseLocalMu && (statePCA == 2))
@@ -1937,13 +2063,13 @@ void ConstantTimeHDGF_InterpolationSingle::merge(const int k, const bool isInit)
 		{
 			if (isUseFmath) mergeRecomputeAlpha<1, false>(vguide, k);
 			else mergeRecomputeAlpha<0, false>(vguide, k);
-		}
+	}
 #else 
 		computeAlpha<1>((isJoint) ? vguide : vsrc, k);//K*imsize
 		merge(k, isInit);
 #endif
-	}
 }
+	}
 
 void ConstantTimeHDGF_InterpolationSingle::split_blur(const int k, const bool isUseFmath, const bool isUseLSP)
 {

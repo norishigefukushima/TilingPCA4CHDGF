@@ -519,6 +519,8 @@ private:
 
 	template<int use_fmath, const bool isInit>
 	void mergeRecomputeAlphaForUsingMu(std::vector<cv::Mat>& src, const int k);
+	template<int use_fmath, const bool isInit>
+	void mergeRecomputeAlphaForUsingNLMMu(std::vector<cv::Mat>& src, const int k);
 
 	template<int use_fmath, const bool isInit, int channels, int guide_channels>
 	void mergeRecomputeAlphaForUsingMuPCA(std::vector<cv::Mat>& guide, const int k);

@@ -594,8 +594,8 @@ void testClusteringCBF_SpringerNature(string wname)
 	int lambda = 100; createTrackbar("lambda", wname2, &lambda, 100);
 	//convmethod = "interpolation NLM" sw=11;
 	int sw1 = 0; createTrackbar("sw1", wname2, &sw1, 8); setTrackbarMin("sw1", wname2, -1);
-	int sw2 = 2; createTrackbar("sw2", wname2, &sw2, 8); setTrackbarMin("sw2", wname2, -1);
-	int sw3 = 5; createTrackbar("sw3", wname2, &sw3, 8); setTrackbarMin("sw3", wname2, -1);
+	int sw2 = 1; createTrackbar("sw2", wname2, &sw2, 8); setTrackbarMin("sw2", wname2, -1);
+	int sw3 = 2; createTrackbar("sw3", wname2, &sw3, 8); setTrackbarMin("sw3", wname2, -1);
 
 	int showIndex = 0; createTrackbar("showIndex", wname2, &showIndex, 2);
 	int alpha = 0; createTrackbar("a", wname2, &alpha, 100);
@@ -604,7 +604,7 @@ void testClusteringCBF_SpringerNature(string wname)
 	int sigma_space = 3; createTrackbar("ss", wname2, &sigma_space, 32);
 	int sigma_range = 40; createTrackbar("sr", wname2, &sigma_range, 255);
 	int tile_truncate_r = 10; createTrackbar("tile_truncate_r", wname2, &tile_truncate_r, 60);
-	int gf_order = 3; createTrackbar("gf_order", wname2, &gf_order, 9); setTrackbarMin("gf_order", wname2, 1);
+	int gf_order = 2; createTrackbar("gf_order", wname2, &gf_order, 9); setTrackbarMin("gf_order", wname2, 1);
 	int srcdownsample = 0; createTrackbar("src_downsample", wname2, &srcdownsample, 3);
 
 	//int K_ = 5; createTrackbar("K", wname, &K_, 5000);
@@ -632,7 +632,7 @@ void testClusteringCBF_SpringerNature(string wname)
 	int tilex = 2; createTrackbar("tilex", wname2, &tilex, 4);
 	int tiley = 2; createTrackbar("tiley", wname2, &tiley, 4);
 	int softlambda = 50; createTrackbar("soft:lambda*0.001", wname2, &softlambda, 2000);
-	int localmu = 0; createTrackbar("isLocalMu", wname2, &localmu, 1);
+	int localmu = 1; createTrackbar("isLocalMu", wname2, &localmu, 1);
 	int localsp = 0; createTrackbar("isLocalSP", wname2, &localsp, 1);
 	int localsp_delta = 0; createTrackbar("LocalSP delta", wname2, &localsp_delta, 1000);
 	int nlm_r = 1;
