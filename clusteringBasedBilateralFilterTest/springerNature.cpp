@@ -421,7 +421,7 @@ void testClusteringCBF_SpringerNature(string wname)
 	//const int color = 0;//gray
 	//src[0] = imread("img/lenna.png");
 
-	cv::Size maxdivision(16, 16);
+	cv::Size maxdivision(32, 32);
 	//cv::Size division(4, 4);
 	//cv::Size division(8, 4);
 	//cv::Size division(4, 4);
@@ -629,8 +629,8 @@ void testClusteringCBF_SpringerNature(string wname)
 	int ds_method = DownsampleMethod::IMPORTANCE_MAP;
 	createTrackbar("downsample method", wname2, &ds_method, DownsampleMethod::DownsampleMethodSize - 1);
 	int crop = 1; createTrackbar("isCropClustering", wname2, &crop, 1);
-	int tilex = 2; createTrackbar("tilex", wname2, &tilex, 4);
-	int tiley = 2; createTrackbar("tiley", wname2, &tiley, 4);
+	int tilex = 2; createTrackbar("tilex", wname2, &tilex, 5);
+	int tiley = 2; createTrackbar("tiley", wname2, &tiley, 5);
 	int softlambda = 50; createTrackbar("soft:lambda*0.001", wname2, &softlambda, 2000);
 	int localmu = 1; createTrackbar("isLocalMu", wname2, &localmu, 1);
 	int localsp = 0; createTrackbar("isLocalSP", wname2, &localsp, 1);
@@ -657,7 +657,7 @@ void testClusteringCBF_SpringerNature(string wname)
 
 	cp::UpdateCheck ucRecomputeRef(sigma_range, sigma_space, src_num, methodHDGF, pca_channel, pca_method1, lambda, tilex, tiley, clusteringHDGFMethod, border);
 	cp::UpdateCheck uc2(sw1, sw2, sw3, cm, ds, K_, ds_method, tile_truncate_r, crop, gf_order, srcdownsample);
-	cp::UpdateCheck uc3(km_attempts, km_sigma, km_iter, localmu, localsp, localsp_delta,softlambda);
+	cp::UpdateCheck uc3(km_attempts, km_sigma, km_iter, localmu, localsp, localsp_delta, softlambda);
 	//cp::UpdateCheck uc4(lambda, delta, localmu, localsp);
 	cp::ConsoleImage ci(Size(640, 800), "Info");
 
@@ -754,30 +754,39 @@ void testClusteringCBF_SpringerNature(string wname)
 				cp::IM2COL(src32, guide32f, nlm_r, border);
 			}
 
-			t.start();
-			cp::highDimensionalGaussianFilter(src32, guide32f, d32, Size(d_ref, d_ref), sigma_range, sigma_space, border);
-			//cp::bilateralFilterL2(src32, d32, d / 2, sigma_range, sigma_space, border);
+			for (int i = 0; i < 5; i++)
+			{
+				t.start();
+				cp::highDimensionalGaussianFilter(src32, guide32f, d32, Size(d_ref, d_ref), sigma_range, sigma_space, border);
+				//cp::bilateralFilterL2(src32, d32, d / 2, sigma_range, sigma_space, border);
+				t.pushLapTime();
+			}
+			timeref = t.getLapTimeMedian();
 			d32.convertTo(ref, CV_64F);
-			timeref = t.getTime();
 
 			Mat hguide;
 			Mat pca;
 			if (isRefFullPCA)
 			{
-				t.start();
-				if (methodHDGF == NLM)
+				for (int i = 0; i < 5; i++)
 				{
-					patchPCA(src32, hguide, nlm_r, pca_channel, border, pca_method1);
-					cp::highDimensionalGaussianFilter(src32, hguide, pca, Size(d_ref, d_ref), sigma_range, sigma_space, border);
-					pca.convertTo(pca, CV_64F);
+					t.start();
+					if (methodHDGF == NLM)
+					{
+						patchPCA(src32, hguide, nlm_r, pca_channel, border, pca_method1);
+						cp::highDimensionalGaussianFilter(src32, hguide, pca, Size(d_ref, d_ref), sigma_range, sigma_space, border, cp::HDGFSchedule::COMPUTE);
+						pca.convertTo(pca, CV_64F);
+					}
+					else
+					{
+						cp::cvtColorPCA(guide32f, hguide, pca_channel);
+						cp::highDimensionalGaussianFilter(src32, hguide, pca, Size(d_ref, d_ref), sigma_range, sigma_space, border, cp::HDGFSchedule::COMPUTE);
+						//cp::highDimensionalGaussianFilter(src32, hguide, pca, Size(d_ref, d_ref), sigma_range, sigma_space, border, cp::HDGFSchedule::LUT_SQRT);
+						pca.convertTo(pca, CV_64F);
+					}
+					t.pushLapTime();
 				}
-				else
-				{
-					cp::cvtColorPCA(guide32f, hguide, pca_channel);
-					cp::highDimensionalGaussianFilter(src32, hguide, pca, Size(d_ref, d_ref), sigma_range, sigma_space, border);
-					pca.convertTo(pca, CV_64F);
-				}
-				timeref_fullpca = t.getTime();
+				timeref_fullpca = t.getLapTimeMedian();
 				psnr_fullpca = cp::getPSNR(pca, ref);
 			}
 			if (isRefTilePCA)
@@ -851,7 +860,7 @@ void testClusteringCBF_SpringerNature(string wname)
 		}
 
 		if (uc2.isUpdate(sw1, sw2, sw3, cm, ds, K_, ds_method, tile_truncate_r, crop, gf_order, srcdownsample) ||
-			uc3.isUpdate(km_attempts, km_sigma, km_iter, localmu, localsp, localsp_delta,softlambda)// ||
+			uc3.isUpdate(km_attempts, km_sigma, km_iter, localmu, localsp, localsp_delta, softlambda)// ||
 			//uc4.isUpdate(lambda, delta,localsp)
 			)
 		{
@@ -894,7 +903,7 @@ void testClusteringCBF_SpringerNature(string wname)
 			tHDGF->setLambdaInterpolation(softlambda * 0.001);
 			tHDGF->setIsUseLocalMu(localmu == 1);
 			tHDGF->setIsUseLocalStatisticsPrior(localsp == 1);
-			tHDGF->setDeltaLocalStatisticsPrior(localsp_delta*0.1);
+			tHDGF->setDeltaLocalStatisticsPrior(localsp_delta * 0.1);
 			tHDGF->setKMeansAttempts(km_attempts);
 			tHDGF->setNumIterations(km_iter);
 			//std::cout << "km sigma" << km_sigma << std::endl;
@@ -971,13 +980,13 @@ void testClusteringCBF_SpringerNature(string wname)
 					{
 						cvtColorPCATile(guide32f, guide4Filter, pca_channel, division);
 						cp::imshowSplitScale("tilePCA", guide4Filter);
-					}
+			}
 #else
 					cp::cvtColorPCA(guide32f, guide4Filter, pca_channel);
 #endif
 					tHDGF->jointfilter(input32f, guide4Filter, dst, sigma_space, sigma_range, (ClusterMethod)cm, K_, gf_method, gf_order, depth, isDownsampleClustering, pow(2, ds), ds_method, tile_truncate_r * 0.1, border);
-				}
-			}
+		}
+	}
 			else if (sw == 2)
 			{
 				if (methodHDGF == NLM)
@@ -1108,8 +1117,8 @@ void testClusteringCBF_SpringerNature(string wname)
 			}
 
 			//tHDGF->getEigenValueInfo();
-		}
-		
+}
+
 		Mat v = dst1;
 		if (showIndex == 1) v = dst2;
 		if (showIndex == 2) v = dst3;

@@ -583,6 +583,17 @@ void ConstantTimeHDGF_NystromSingle::split_blur_merge()
 	}
 }
 
+void divideZeroDivZero(cv::Mat& src, cv::Mat& div, cv::Mat& dest, cv::Mat& mask)
+{
+	dest.create(src.size(), CV_32F);
+	for (int i = 0; i < src.size().area(); i++)
+	{
+		if (mask.at<float>(i) != 0.f)
+			dest.at<float>(i) = (div.at<float>(i) == 0.f) ? 0.f : src.at<float>(i) / div.at<float>(i);
+		else dest.at<float>(i) = 0.f;
+	}
+}
+
 //specialized for 1 and 3 or any channel
 void ConstantTimeHDGF_NystromSingle::split_blur_merge()
 {
@@ -795,6 +806,20 @@ void ConstantTimeHDGF_NystromSingle::split_blur_merge()
 				GF->filter(Uf[1], Uf[1], sigma_space, spatial_order, borderType);
 				GF->filter(Uf[2], Uf[2], sigma_space, spatial_order, borderType);
 				GF->filter(U, U_Gaussian, sigma_space, spatial_order, borderType);
+				/*cv::Mat temp;
+				std::vector<cv::Mat>a(3);
+				divideZeroDivZero(Uf[0], U_Gaussian, a[0],U);
+				divideZeroDivZero(Uf[1], U_Gaussian, a[1],U);
+				divideZeroDivZero(Uf[2], U_Gaussian, a[2],U);
+
+				cv::merge(Uf, temp);
+				//cv::merge(a, temp);
+				temp.convertTo(temp, CV_8U);
+				//cv::putText(temp, cv::format("k=%d", k), cv::Point(20, 50), cv::FONT_HERSHEY_COMPLEX, 2, COLOR_WHITE);
+				//imshow("a", temp);
+				cp::imshowNormalize("a", temp);
+				cv::waitKey();*/
+
 			}
 			const __m256 mlambdainv = (lambdalPtr[0] != 0) ? _mm256_set1_ps((1.f / lambdalPtr[0])) : _mm256_set1_ps((1.f));
 
