@@ -406,7 +406,7 @@ void testClusteringCBF_SpringerNature(string wname)
 	const bool isRefFullPCA = true;
 	const bool isRefTilePCA = true;
 	const bool isRefTilePCA2 = false;
-	const bool isRefTileDCT = true;
+	const bool isRefTileDCT = false;
 
 	_MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_ON);
 	_MM_SET_DENORMALS_ZERO_MODE(_MM_DENORMALS_ZERO_ON);
@@ -421,23 +421,23 @@ void testClusteringCBF_SpringerNature(string wname)
 	//const int color = 0;//gray
 	//src[0] = imread("img/lenna.png");
 
-	//cv::Size division(16, 16);
-	cv::Size division(4, 4);
+	cv::Size maxdivision(16, 16);
+	//cv::Size division(4, 4);
 	//cv::Size division(8, 4);
 	//cv::Size division(4, 4);
 	//cv::Size division(8, 4);
 	//cv::Size division(2, 2);
 	//cv::Size division(1, 1);
 
-	//int methodHDGF = RGB;
-	int methodHDGF = RGBD;
+	int methodHDGF = RGB;
+	//int methodHDGF = RGBD;
 	//int methodHDGF = RGBIR;
 	//int methodHDGF = FNF;
 	//int methodHDGF = HSI;
 	//int methodHDGF = NLM;
 	createTrackbar("HDGF method", wname2, &methodHDGF, 5);
-	int clusteringHDGFMethod = 0; //interpolation
-	//int clusteringHDGFMethod = 1; //Nystrom
+	//int clusteringHDGFMethod = 0; //interpolation
+	int clusteringHDGFMethod = 1; //Nystrom
 	//int clusteringHDGFMethod = 2; //soft
 	createTrackbar("clusteringHDGF", wname2, &clusteringHDGFMethod, 2);
 
@@ -624,9 +624,9 @@ void testClusteringCBF_SpringerNature(string wname)
 	//int cm = (int)ClusterMethod::K_means_mediancut;
 	//int cm = ClusterMethod::X_means; 
 	createTrackbar("ClusterMethod", wname2, &cm, (int)ClusterMethod::Size - 1);
-	int ds = 0; createTrackbar("downsample 2^n", wname2, &ds, 5);
-	int ds_method = INTER_NEAREST;
-	//int ds_method = DownsampleMethod::IMPORTANCE_MAP;
+	int ds = 2; createTrackbar("downsample 2^n", wname2, &ds, 5);
+	//int ds_method = INTER_NEAREST;
+	int ds_method = DownsampleMethod::IMPORTANCE_MAP;
 	createTrackbar("downsample method", wname2, &ds_method, DownsampleMethod::DownsampleMethodSize - 1);
 	int crop = 1; createTrackbar("isCropClustering", wname2, &crop, 1);
 	int tilex = 2; createTrackbar("tilex", wname2, &tilex, 4);
@@ -670,8 +670,8 @@ void testClusteringCBF_SpringerNature(string wname)
 	cp::Stat psnr3;
 	cp::Stat psnrsrc;
 
-	vector<cp::Stat> psnr_tile1(division.area());
-	vector<cp::Stat> psnr_tile2(division.area());
+	vector<cp::Stat> psnr_tile1(maxdivision.area());
+	vector<cp::Stat> psnr_tile2(maxdivision.area());
 	//omp_set_num_threads(1);
 	Mat input32f;
 	Mat guide4Filter;
@@ -690,12 +690,12 @@ void testClusteringCBF_SpringerNature(string wname)
 	double psnr_tiledct = 0.0;
 	double psnrpcaonly = 0.0;
 
-	TileHDGF hdgf(division);
+	TileHDGF hdgf(maxdivision);
 
 	ConstantTimeHDGF CHDGF = ConstantTimeHDGF::Nystrom;
-	Ptr<TileConstantTimeHDGF> tHDGF1 = new TileConstantTimeHDGF(division, ConstantTimeHDGF(clusteringHDGFMethod));
-	Ptr<TileConstantTimeHDGF> tHDGF2 = new TileConstantTimeHDGF(division, ConstantTimeHDGF(clusteringHDGFMethod));
-	Ptr<TileConstantTimeHDGF> tHDGF3 = new TileConstantTimeHDGF(division, ConstantTimeHDGF(clusteringHDGFMethod));
+	Ptr<TileConstantTimeHDGF> tHDGF1 = new TileConstantTimeHDGF(maxdivision, ConstantTimeHDGF(clusteringHDGFMethod));
+	Ptr<TileConstantTimeHDGF> tHDGF2 = new TileConstantTimeHDGF(maxdivision, ConstantTimeHDGF(clusteringHDGFMethod));
+	Ptr<TileConstantTimeHDGF> tHDGF3 = new TileConstantTimeHDGF(maxdivision, ConstantTimeHDGF(clusteringHDGFMethod));
 
 #pragma endregion
 	while (key != 'q')
@@ -705,10 +705,10 @@ void testClusteringCBF_SpringerNature(string wname)
 		if (ucRecomputeRef.isUpdate(sigma_range, sigma_space, src_num, methodHDGF, pca_channel, pca_method1, lambda, tilex, tiley, clusteringHDGFMethod, border))
 		{
 			int d_ref = 2 * (ceil(sigma_space * 3.0)) + 1;
-			division = Size(pow(2, tilex), pow(2, tiley));
-			tHDGF1 = new TileConstantTimeHDGF(division, ConstantTimeHDGF(clusteringHDGFMethod));
-			tHDGF2 = new TileConstantTimeHDGF(division, ConstantTimeHDGF(clusteringHDGFMethod));
-			tHDGF3 = new TileConstantTimeHDGF(division, ConstantTimeHDGF(clusteringHDGFMethod));
+			maxdivision = Size(pow(2, tilex), pow(2, tiley));
+			tHDGF1 = new TileConstantTimeHDGF(maxdivision, ConstantTimeHDGF(clusteringHDGFMethod));
+			tHDGF2 = new TileConstantTimeHDGF(maxdivision, ConstantTimeHDGF(clusteringHDGFMethod));
+			tHDGF3 = new TileConstantTimeHDGF(maxdivision, ConstantTimeHDGF(clusteringHDGFMethod));
 
 			dst.release();
 			Mat d32;
@@ -786,12 +786,12 @@ void testClusteringCBF_SpringerNature(string wname)
 				if (methodHDGF == NLM)
 				{
 					cp::IM2COL(src32, hguide, nlm_r, border);
-					highDimensionalGaussianFilterTilePCA(src32, hguide, pca, Size(d_ref, d_ref), sigma_range, sigma_space, pca_channel, division, border);
+					highDimensionalGaussianFilterTilePCA(src32, hguide, pca, Size(d_ref, d_ref), sigma_range, sigma_space, pca_channel, maxdivision, border);
 					pca.convertTo(pca, CV_64F);
 				}
 				else
 				{
-					highDimensionalGaussianFilterTilePCA(src32, guide32f, pca, Size(d_ref, d_ref), sigma_range, sigma_space, pca_channel, division, border);
+					highDimensionalGaussianFilterTilePCA(src32, guide32f, pca, Size(d_ref, d_ref), sigma_range, sigma_space, pca_channel, maxdivision, border);
 					pca.convertTo(pca, CV_64F);
 				}
 				timeref_tilepca = t.getTime();
@@ -803,12 +803,12 @@ void testClusteringCBF_SpringerNature(string wname)
 				if (methodHDGF == NLM)
 				{
 					cp::IM2COL(src32, hguide, nlm_r, border);
-					highDimensionalGaussianFilterTilePCA2(src32, hguide, pca, Size(d_ref, d_ref), sigma_range, sigma_space, pca_channel, division, border);
+					highDimensionalGaussianFilterTilePCA2(src32, hguide, pca, Size(d_ref, d_ref), sigma_range, sigma_space, pca_channel, maxdivision, border);
 					pca.convertTo(pca, CV_64F);
 				}
 				else
 				{
-					highDimensionalGaussianFilterTilePCA2(src32, guide32f, pca, Size(d_ref, d_ref), sigma_range, sigma_space, pca_channel, division, border);
+					highDimensionalGaussianFilterTilePCA2(src32, guide32f, pca, Size(d_ref, d_ref), sigma_range, sigma_space, pca_channel, maxdivision, border);
 					pca.convertTo(pca, CV_64F);
 				}
 				timeref_tilepca2 = t.getTime();
@@ -820,12 +820,12 @@ void testClusteringCBF_SpringerNature(string wname)
 				if (methodHDGF == NLM)
 				{
 					cp::IM2COL(src32, hguide, nlm_r, border);
-					highDimensionalGaussianFilterTileDCT(src32, hguide, pca, Size(d_ref, d_ref), sigma_range, sigma_space, pca_channel, division, border);
+					highDimensionalGaussianFilterTileDCT(src32, hguide, pca, Size(d_ref, d_ref), sigma_range, sigma_space, pca_channel, maxdivision, border);
 					pca.convertTo(pca, CV_64F);
 				}
 				else
 				{
-					highDimensionalGaussianFilterTileDCT(src32, guide32f, pca, Size(d_ref, d_ref), sigma_range, sigma_space, pca_channel, division, border);
+					highDimensionalGaussianFilterTileDCT(src32, guide32f, pca, Size(d_ref, d_ref), sigma_range, sigma_space, pca_channel, maxdivision, border);
 					pca.convertTo(pca, CV_64F);
 				}
 				timeref_tiledct = t.getTime();
@@ -868,7 +868,7 @@ void testClusteringCBF_SpringerNature(string wname)
 			psnr2.clear();
 			psnr3.clear();
 			psnrsrc.clear();
-			for (int i = 0; i < division.area(); i++)
+			for (int i = 0; i < maxdivision.area(); i++)
 			{
 				psnr_tile1[i].clear();
 				psnr_tile2[i].clear();
@@ -1005,12 +1005,12 @@ void testClusteringCBF_SpringerNature(string wname)
 				{
 					convmethod = "Full PermutohedralLattice NLM";
 					cp::IM2COL(input32f, guide4Filter, nlm_r, border);
-					cp::highDimensionalGaussianFilterPermutohedralLatticeTile(input32f, guide4Filter, dst, sigma_range, sigma_space, division, tile_truncate_r * 0.1);
+					cp::highDimensionalGaussianFilterPermutohedralLatticeTile(input32f, guide4Filter, dst, sigma_range, sigma_space, maxdivision, tile_truncate_r * 0.1);
 				}
 				else
 				{
 					convmethod = "Full PermutohedralLattice";
-					cp::highDimensionalGaussianFilterPermutohedralLatticeTile(input32f, guide32f, dst, sigma_range, sigma_space, division, tile_truncate_r * 0.1);
+					cp::highDimensionalGaussianFilterPermutohedralLatticeTile(input32f, guide32f, dst, sigma_range, sigma_space, maxdivision, tile_truncate_r * 0.1);
 				}
 			}
 			else if (sw == 4)
@@ -1019,13 +1019,13 @@ void testClusteringCBF_SpringerNature(string wname)
 				{
 					convmethod = "Full PCA PermutohedralLattice NLM";
 					patchPCA(input32f, guide4Filter, nlm_r, pca_channel, border, pca_method);
-					cp::highDimensionalGaussianFilterPermutohedralLatticeTile(input32f, guide4Filter, dst, sigma_range, sigma_space, division, tile_truncate_r * 0.1);
+					cp::highDimensionalGaussianFilterPermutohedralLatticeTile(input32f, guide4Filter, dst, sigma_range, sigma_space, maxdivision, tile_truncate_r * 0.1);
 				}
 				else
 				{
 					convmethod = "Full PCA PermutohedralLattice";
 					cp::cvtColorPCA(guide32f, guide4Filter, pca_channel);
-					cp::highDimensionalGaussianFilterPermutohedralLatticeTile(input32f, guide4Filter, dst, sigma_range, sigma_space, division, tile_truncate_r * 0.1);
+					cp::highDimensionalGaussianFilterPermutohedralLatticeTile(input32f, guide4Filter, dst, sigma_range, sigma_space, maxdivision, tile_truncate_r * 0.1);
 				}
 			}
 			else if (sw == 5)
@@ -1033,14 +1033,14 @@ void testClusteringCBF_SpringerNature(string wname)
 				if (methodHDGF == NLM)
 				{
 					convmethod = "Tile PCA PermutohedralLattice NLM";
-					patchPCATile(input32f, guide4Filter, nlm_r, pca_channel, border, pca_method, division);
-					cp::highDimensionalGaussianFilterPermutohedralLatticeTile(input32f, guide4Filter, dst, sigma_range, sigma_space, division, tile_truncate_r * 0.1);
+					patchPCATile(input32f, guide4Filter, nlm_r, pca_channel, border, pca_method, maxdivision);
+					cp::highDimensionalGaussianFilterPermutohedralLatticeTile(input32f, guide4Filter, dst, sigma_range, sigma_space, maxdivision, tile_truncate_r * 0.1);
 				}
 				else
 				{
 					convmethod = "Tile PCA PermutohedralLattice";
 					//print_matinfo(guide32f);
-					cp::highDimensionalGaussianFilterPermutohedralLatticePCATile(input32f, guide32f, dst, sigma_range, sigma_space, pca_channel, division, tile_truncate_r * 0.1);
+					cp::highDimensionalGaussianFilterPermutohedralLatticePCATile(input32f, guide32f, dst, sigma_range, sigma_space, pca_channel, maxdivision, tile_truncate_r * 0.1);
 				}
 			}
 			else if (sw == 6)
@@ -1049,12 +1049,12 @@ void testClusteringCBF_SpringerNature(string wname)
 				{
 					convmethod = "Full GaussianKD-Tree NLM";
 					cp::IM2COL(input32f, guide4Filter, nlm_r, border);
-					cp::highDimensionalGaussianFilterGaussianKDTreeTile(input32f, guide4Filter, dst, sigma_range, sigma_space, division, tile_truncate_r * 0.1);
+					cp::highDimensionalGaussianFilterGaussianKDTreeTile(input32f, guide4Filter, dst, sigma_range, sigma_space, maxdivision, tile_truncate_r * 0.1);
 				}
 				else
 				{
 					convmethod = "Full GaussianKD-Tree";
-					cp::highDimensionalGaussianFilterGaussianKDTreeTile(input32f, guide32f, dst, sigma_range, sigma_space, division, tile_truncate_r * 0.1);
+					cp::highDimensionalGaussianFilterGaussianKDTreeTile(input32f, guide32f, dst, sigma_range, sigma_space, maxdivision, tile_truncate_r * 0.1);
 				}
 			}
 			else if (sw == 7)
@@ -1063,13 +1063,13 @@ void testClusteringCBF_SpringerNature(string wname)
 				{
 					convmethod = "Full PCA GaussianKD-Tree NLM";
 					patchPCA(input32f, guide4Filter, nlm_r, pca_channel, border, pca_method);
-					cp::highDimensionalGaussianFilterGaussianKDTreeTile(input32f, guide4Filter, dst, sigma_range, sigma_space, division, tile_truncate_r * 0.1);
+					cp::highDimensionalGaussianFilterGaussianKDTreeTile(input32f, guide4Filter, dst, sigma_range, sigma_space, maxdivision, tile_truncate_r * 0.1);
 				}
 				else
 				{
 					convmethod = "Full PCA GaussianKD-Tree";
 					cp::cvtColorPCA(guide32f, guide4Filter, pca_channel);
-					cp::highDimensionalGaussianFilterGaussianKDTreeTile(input32f, guide4Filter, dst, sigma_range, sigma_space, division, tile_truncate_r * 0.1);
+					cp::highDimensionalGaussianFilterGaussianKDTreeTile(input32f, guide4Filter, dst, sigma_range, sigma_space, maxdivision, tile_truncate_r * 0.1);
 				}
 			}
 			else if (sw == 8)
@@ -1077,13 +1077,13 @@ void testClusteringCBF_SpringerNature(string wname)
 				if (methodHDGF == NLM)
 				{
 					convmethod = "Tile PCA GaussianKD-Tree NLM";
-					patchPCATile(input32f, guide4Filter, nlm_r, pca_channel, border, pca_method, division);
-					cp::highDimensionalGaussianFilterGaussianKDTreeTile(input32f, guide4Filter, dst, sigma_range, sigma_space, division, tile_truncate_r * 0.1);
+					patchPCATile(input32f, guide4Filter, nlm_r, pca_channel, border, pca_method, maxdivision);
+					cp::highDimensionalGaussianFilterGaussianKDTreeTile(input32f, guide4Filter, dst, sigma_range, sigma_space, maxdivision, tile_truncate_r * 0.1);
 				}
 				else
 				{
 					convmethod = "Tile PCA GaussianKD-Tree";
-					cp::highDimensionalGaussianFilterGaussianKDTreePCATile(input32f, guide32f, dst, sigma_range, sigma_space, pca_channel, division, tile_truncate_r * 0.1);
+					cp::highDimensionalGaussianFilterGaussianKDTreePCATile(input32f, guide32f, dst, sigma_range, sigma_space, pca_channel, maxdivision, tile_truncate_r * 0.1);
 				}
 			}
 
@@ -1107,7 +1107,7 @@ void testClusteringCBF_SpringerNature(string wname)
 				dst.copyTo(dst3);
 			}
 
-			tHDGF->getEigenValueInfo();
+			//tHDGF->getEigenValueInfo();
 		}
 		
 		Mat v = dst1;
@@ -1158,7 +1158,7 @@ void testClusteringCBF_SpringerNature(string wname)
 		if (methodNum > 2)psnr3.push_back(cp::getPSNR(dst3, ref, 16));
 		if (key == 'a')cp::guiAlphaBlend(dst1, ref);
 		ci(getHDGFName(methodHDGF));
-		ci("Size %dx%d: Tile %dx%d ,div (%d,%d)", src32.cols, src32.rows, src32.cols / division.width, src32.rows / division.height, division.width, division.height);
+		ci("Size %dx%d: Tile %dx%d ,div (%d,%d)", src32.cols, src32.rows, src32.cols / maxdivision.width, src32.rows / maxdivision.height, maxdivision.width, maxdivision.height);
 		ci("TileB %dx%d", tHDGF1->getTileSize().width, tHDGF1->getTileSize().height);
 		ci("%d| space %d range %d", t1.getStatSize(), sigma_space, sigma_range);
 		ci("clustering: " + getClusterMethodName(ClusterMethod(cm)) + format(": K= %d (%3.1f), iter=%d", K_, pow(double(K_), 1.0 / 3.0), km_iter));

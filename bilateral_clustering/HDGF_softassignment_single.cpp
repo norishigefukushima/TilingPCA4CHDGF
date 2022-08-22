@@ -591,6 +591,166 @@ void ConstantTimeHDGF_SoftAssignmentSingle::computeWandAlpha(const std::vector<c
 	}*/
 }
 
+void multiply32f(const cv::Mat& src1, const cv::Mat& src2, cv::Mat& dst)
+{
+	if (dst.size() != src1.size())dst.create(src1.size(), CV_32F);
+	const int SIZE = src1.size().area();
+	const int SIZE32 = get_simd_floor(SIZE, 32);
+	const float* s1 = src1.ptr<float>();
+	const float* s2 = src2.ptr<float>();
+	float* d = dst.ptr<float>();
+	for (int i = 0; i < SIZE32; i += 32)
+	{
+		_mm256_store_ps(d + i + 0, _mm256_mul_ps(_mm256_load_ps(s1 + i + 0), _mm256_load_ps(s2 + i + 0)));
+		_mm256_store_ps(d + i + 8, _mm256_mul_ps(_mm256_load_ps(s1 + i + 8), _mm256_load_ps(s2 + i + 8)));
+		_mm256_store_ps(d + i + 16, _mm256_mul_ps(_mm256_load_ps(s1 + i + 16), _mm256_load_ps(s2 + i + 16)));
+		_mm256_store_ps(d + i + 24, _mm256_mul_ps(_mm256_load_ps(s1 + i + 24), _mm256_load_ps(s2 + i + 24)));
+	}
+	for (int i = SIZE32; i < SIZE; i += 8)
+	{
+		_mm256_store_ps(d + i, _mm256_mul_ps(_mm256_load_ps(s1 + i), _mm256_load_ps(s2 + i)));
+	}
+}
+
+void ConstantTimeHDGF_SoftAssignmentSingle::split_blur(const int k)
+{
+	float* vecw_ptr = vecW[k].ptr<float>();
+
+	if (channels == 1)
+	{
+		//split
+		//blur
+		multiply32f(vsrc[0], vecW[k], split_inter[0]);
+		GF->filter(vecW[k], vecW[k], sigma_space, spatial_order);
+		GF->filter(split_inter[0], split_inter[0], sigma_space, spatial_order);
+	}
+	else if (channels == 3)
+	{
+		const bool isSplitBlurFusion = true;
+		//cv::Mat blendLSPMask;
+		if (isSplitBlurFusion)
+		{
+			if (downSampleImage != 1)
+			{
+				const double res = 1.0 / downSampleImage;
+				cv::Mat w = downsampleSRC[0];
+				cv::Mat conv = downsampleSRC[1];
+				const double dss = sigma_space * res;
+				resize(vecW[k], w, cv::Size(), res, res, cv::INTER_AREA);
+				for (int c = 0; c < channels; c++)
+				{
+					multiply32f(vsrcRes[c], w, conv);
+					GF->filter(conv, conv, dss, spatial_order, borderType);
+					resize(conv, split_inter[c], cv::Size(), downSampleImage, downSampleImage, cv::INTER_LINEAR);
+				}
+				GF->filter(w, w, dss, spatial_order, borderType);
+				resize(w, vecW[k], cv::Size(), downSampleImage, downSampleImage, cv::INTER_LINEAR);
+		
+				//resize(alpha[k], w, cv::Size(), res, res, cv::INTER_AREA);
+				//resize(w, alpha[k], cv::Size(), downSampleImage, downSampleImage, cv::INTER_LINEAR);
+				//GF->filter(vecW[k], vecW[k], sigma_space, spatial_order, borderType);
+			}
+			else
+			{
+				for (int c = 0; c < channels; c++)
+				{
+					multiply32f(vsrc[c], vecW[k], split_inter[c]);
+					GF->filter(split_inter[c], split_inter[c], sigma_space, spatial_order, borderType);
+				}			
+				GF->filter(vecW[k], vecW[k], sigma_space, spatial_order, borderType);
+			}
+			//vecW[k].copyTo(blendLSPMask);
+			//bilateralFilterLocalStatisticsPriorInternal(vsrc, split_inter, vecW[k], (float)sigma_range*0.001, (float)sigma_space*0.0001, -10000.f, blendLSPMask, BFLSPSchedule::Compute);
+		}
+		else
+		{
+			float* src0 = vsrc[0].ptr<float>();
+			float* src1 = vsrc[1].ptr<float>();
+			float* src2 = vsrc[2].ptr<float>();
+			float* inter0 = split_inter[0].ptr<float>();
+			float* inter1 = split_inter[1].ptr<float>();
+			float* inter2 = split_inter[2].ptr<float>();
+			//split
+			for (int n = 0; n < img_size.area(); n += 8)
+			{
+				__m256 mvecw = _mm256_load_ps(vecw_ptr + n);
+				__m256 msrc0 = _mm256_load_ps(src0 + n);
+				__m256 msrc1 = _mm256_load_ps(src1 + n);
+				__m256 msrc2 = _mm256_load_ps(src2 + n);
+
+				_mm256_store_ps(inter0 + n, _mm256_mul_ps(mvecw, msrc0));
+				_mm256_store_ps(inter1 + n, _mm256_mul_ps(mvecw, msrc1));
+				_mm256_store_ps(inter2 + n, _mm256_mul_ps(mvecw, msrc2));
+			}
+
+			//blur
+			GF->filter(vecW[k], vecW[k], sigma_space, spatial_order, borderType);
+			GF->filter(split_inter[0], split_inter[0], sigma_space, spatial_order, borderType);
+			GF->filter(split_inter[1], split_inter[1], sigma_space, spatial_order, borderType);
+			GF->filter(split_inter[2], split_inter[2], sigma_space, spatial_order, borderType);
+		}
+	}
+	else
+	{
+		const bool isSplitBlurFusion = true;
+		cv::AutoBuffer<float*> srcp(channels);
+		cv::AutoBuffer<float*> intp(channels);
+
+		for (int c = 0; c < channels; c++)
+		{
+			srcp[c] = vsrc[c].ptr<float>();
+			intp[c] = split_inter[c].ptr<float>();
+		}
+		if (isSplitBlurFusion)
+		{
+			if (downSampleImage != 1)
+			{
+				const double res = 1.0 / downSampleImage;
+				cv::Mat w = downsampleSRC[0];
+				cv::Mat conv = downsampleSRC[1];
+
+				resize(vecW[k], w, cv::Size(), res, res, cv::INTER_AREA);
+				for (int c = 0; c < channels; c++)
+				{
+					multiply32f(vsrcRes[c], w, conv);
+					GF->filter(conv, conv, sigma_space * res, spatial_order, borderType);
+					resize(conv, split_inter[c], cv::Size(), downSampleImage, downSampleImage, cv::INTER_LINEAR);
+				}
+				GF->filter(w, w, sigma_space * res, spatial_order, borderType);
+				resize(w, vecW[k], cv::Size(), downSampleImage, downSampleImage, cv::INTER_LINEAR);
+				//GF->filter(vecW[k], vecW[k], sigma_space, spatial_order, borderType);
+			}
+			else
+			{
+				for (int c = 0; c < channels; c++)
+				{
+					multiply32f(vsrc[c], vecW[k], split_inter[c]);
+					GF->filter(split_inter[c], split_inter[c], sigma_space, spatial_order, borderType);
+				}
+				GF->filter(vecW[k], vecW[k], sigma_space, spatial_order, borderType);
+			}
+		}
+		else
+		{
+			//split
+			for (int n = 0; n < img_size.area(); n += 8)
+			{
+				const __m256 mvecw = _mm256_load_ps(vecw_ptr + n);
+				for (int c = 0; c < channels; c++)
+				{
+					_mm256_store_ps(intp[c] + n, _mm256_mul_ps(mvecw, _mm256_load_ps(srcp[c] + n)));
+				}
+			}
+			//blur
+			GF->filter(vecW[k], vecW[k], sigma_space, spatial_order, borderType);
+			for (int c = 0; c < channels; c++)
+			{
+				GF->filter(split_inter[c], split_inter[c], sigma_space, spatial_order, borderType);
+			}
+		}
+	}
+}
+
 template<int flag>
 void ConstantTimeHDGF_SoftAssignmentSingle::merge(cv::Mat& dst, const int k)
 {
@@ -731,166 +891,6 @@ void ConstantTimeHDGF_SoftAssignmentSingle::merge(cv::Mat& dst, const int k)
 	}
 }
 
-void multiply32f(const cv::Mat& src1, const cv::Mat& src2, cv::Mat& dst)
-{
-	if (dst.size() != src1.size())dst.create(src1.size(), CV_32F);
-	const int SIZE = src1.size().area();
-	const int SIZE32 = get_simd_floor(SIZE, 32);
-	const float* s1 = src1.ptr<float>();
-	const float* s2 = src2.ptr<float>();
-	float* d = dst.ptr<float>();
-	for (int i = 0; i < SIZE32; i += 32)
-	{
-		_mm256_store_ps(d + i + 0, _mm256_mul_ps(_mm256_load_ps(s1 + i + 0), _mm256_load_ps(s2 + i + 0)));
-		_mm256_store_ps(d + i + 8, _mm256_mul_ps(_mm256_load_ps(s1 + i + 8), _mm256_load_ps(s2 + i + 8)));
-		_mm256_store_ps(d + i + 16, _mm256_mul_ps(_mm256_load_ps(s1 + i + 16), _mm256_load_ps(s2 + i + 16)));
-		_mm256_store_ps(d + i + 24, _mm256_mul_ps(_mm256_load_ps(s1 + i + 24), _mm256_load_ps(s2 + i + 24)));
-	}
-	for (int i = SIZE32; i < SIZE; i += 8)
-	{
-		_mm256_store_ps(d + i, _mm256_mul_ps(_mm256_load_ps(s1 + i), _mm256_load_ps(s2 + i)));
-	}
-}
-
-template<int flag>
-void ConstantTimeHDGF_SoftAssignmentSingle::split_blur_merge(cv::Mat& dst, const int k)
-{
-	float* vecw_ptr = vecW[k].ptr<float>();
-
-	if (channels == 1)
-	{
-		//split
-		//blur
-		multiply32f(vsrc[0], vecW[k], split_inter[0]);
-		GF->filter(vecW[k], vecW[k], sigma_space, spatial_order);
-		GF->filter(split_inter[0], split_inter[0], sigma_space, spatial_order);
-	}
-	else if (channels == 3)
-	{
-		const bool isSplitBlurFusion = true;
-		if (isSplitBlurFusion)
-		{
-			if (downSampleImage != 1)
-			{
-				const double res = 1.0 / downSampleImage;
-				cv::Mat w = downsampleSRC[0];
-				cv::Mat conv = downsampleSRC[1];
-				const double dss = sigma_space * res;
-				resize(vecW[k], w, cv::Size(), res, res, cv::INTER_AREA);
-				for (int c = 0; c < channels; c++)
-				{
-					multiply32f(vsrcRes[c], w, conv);
-					GF->filter(conv, conv, dss, spatial_order, borderType);
-					resize(conv, split_inter[c], cv::Size(), downSampleImage, downSampleImage, cv::INTER_LINEAR);
-				}
-				GF->filter(w, w, dss, spatial_order, borderType);
-				resize(w, vecW[k], cv::Size(), downSampleImage, downSampleImage, cv::INTER_LINEAR);
-		
-				//resize(alpha[k], w, cv::Size(), res, res, cv::INTER_AREA);
-				//resize(w, alpha[k], cv::Size(), downSampleImage, downSampleImage, cv::INTER_LINEAR);
-				//GF->filter(vecW[k], vecW[k], sigma_space, spatial_order, borderType);
-			}
-			else
-			{
-				for (int c = 0; c < channels; c++)
-				{
-					multiply32f(vsrc[c], vecW[k], split_inter[c]);
-					GF->filter(split_inter[c], split_inter[c], sigma_space, spatial_order, borderType);
-				}
-				GF->filter(vecW[k], vecW[k], sigma_space, spatial_order, borderType);
-			}
-		}
-		else
-		{
-			float* src0 = vsrc[0].ptr<float>();
-			float* src1 = vsrc[1].ptr<float>();
-			float* src2 = vsrc[2].ptr<float>();
-			float* inter0 = split_inter[0].ptr<float>();
-			float* inter1 = split_inter[1].ptr<float>();
-			float* inter2 = split_inter[2].ptr<float>();
-			//split
-			for (int n = 0; n < img_size.area(); n += 8)
-			{
-				__m256 mvecw = _mm256_load_ps(vecw_ptr + n);
-				__m256 msrc0 = _mm256_load_ps(src0 + n);
-				__m256 msrc1 = _mm256_load_ps(src1 + n);
-				__m256 msrc2 = _mm256_load_ps(src2 + n);
-
-				_mm256_store_ps(inter0 + n, _mm256_mul_ps(mvecw, msrc0));
-				_mm256_store_ps(inter1 + n, _mm256_mul_ps(mvecw, msrc1));
-				_mm256_store_ps(inter2 + n, _mm256_mul_ps(mvecw, msrc2));
-			}
-
-			//blur
-			GF->filter(vecW[k], vecW[k], sigma_space, spatial_order, borderType);
-			GF->filter(split_inter[0], split_inter[0], sigma_space, spatial_order, borderType);
-			GF->filter(split_inter[1], split_inter[1], sigma_space, spatial_order, borderType);
-			GF->filter(split_inter[2], split_inter[2], sigma_space, spatial_order, borderType);
-		}
-	}
-	else
-	{
-		const bool isSplitBlurFusion = true;
-		cv::AutoBuffer<float*> srcp(channels);
-		cv::AutoBuffer<float*> intp(channels);
-
-		for (int c = 0; c < channels; c++)
-		{
-			srcp[c] = vsrc[c].ptr<float>();
-			intp[c] = split_inter[c].ptr<float>();
-		}
-		if (isSplitBlurFusion)
-		{
-			if (downSampleImage != 1)
-			{
-				const double res = 1.0 / downSampleImage;
-				cv::Mat w = downsampleSRC[0];
-				cv::Mat conv = downsampleSRC[1];
-
-				resize(vecW[k], w, cv::Size(), res, res, cv::INTER_AREA);
-				for (int c = 0; c < channels; c++)
-				{
-					multiply32f(vsrcRes[c], w, conv);
-					GF->filter(conv, conv, sigma_space * res, spatial_order, borderType);
-					resize(conv, split_inter[c], cv::Size(), downSampleImage, downSampleImage, cv::INTER_LINEAR);
-				}
-				GF->filter(w, w, sigma_space * res, spatial_order, borderType);
-				resize(w, vecW[k], cv::Size(), downSampleImage, downSampleImage, cv::INTER_LINEAR);
-				//GF->filter(vecW[k], vecW[k], sigma_space, spatial_order, borderType);
-			}
-			else
-			{
-				for (int c = 0; c < channels; c++)
-				{
-					multiply32f(vsrc[c], vecW[k], split_inter[c]);
-					GF->filter(split_inter[c], split_inter[c], sigma_space, spatial_order, borderType);
-				}
-				GF->filter(vecW[k], vecW[k], sigma_space, spatial_order, borderType);
-			}
-		}
-		else
-		{
-			//split
-			for (int n = 0; n < img_size.area(); n += 8)
-			{
-				const __m256 mvecw = _mm256_load_ps(vecw_ptr + n);
-				for (int c = 0; c < channels; c++)
-				{
-					_mm256_store_ps(intp[c] + n, _mm256_mul_ps(mvecw, _mm256_load_ps(srcp[c] + n)));
-				}
-			}
-			//blur
-			GF->filter(vecW[k], vecW[k], sigma_space, spatial_order, borderType);
-			for (int c = 0; c < channels; c++)
-			{
-				GF->filter(split_inter[c], split_inter[c], sigma_space, spatial_order, borderType);
-			}
-		}
-	}
-
-	merge<flag>(dst, k);
-}
-
 void ConstantTimeHDGF_SoftAssignmentSingle::body(const std::vector<cv::Mat>& src, cv::Mat& dst, const std::vector<cv::Mat>& guide)
 {
 	{
@@ -923,9 +923,10 @@ void ConstantTimeHDGF_SoftAssignmentSingle::body(const std::vector<cv::Mat>& src
 		//cp::Timer t("blur");
 		for (int k = 0; k < K; k++)
 		{
-			if (k == 0) split_blur_merge<0>(dst, k);
-			else if (k == K - 1)split_blur_merge<2>(dst, k);
-			else split_blur_merge<1>(dst, k);
+			split_blur(k);
+			if (k == 0) merge<0>(dst, k);
+			else if (k == K - 1)merge<2>(dst, k);
+			else merge<1>(dst, k);
 		}
 	}
 }

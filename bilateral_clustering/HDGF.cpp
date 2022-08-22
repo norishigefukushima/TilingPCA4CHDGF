@@ -822,7 +822,7 @@ void ConstantTimeHDGFSingleBase::clustering()
 	}
 	CV_Assert(mu.rows == K);
 
-	if(isTestClustering)testClustering(vguide);
+	if (isTestClustering)testClustering(vguide);
 }
 
 void ConstantTimeHDGFSingleBase::downsampleForClustering(cv::Mat& src, cv::Mat& dest)
@@ -875,6 +875,79 @@ void ConstantTimeHDGFSingleBase::downsampleImage(const std::vector<cv::Mat>& vsr
 	}
 }
 
+void sampling_imgproc(Mat& src_, Mat& dest)
+{
+	Mat src = src_.clone();
+
+	
+	double ss1 = 3.0;
+	Mat temp;
+	GaussianBlur(src, temp, Size((int)ceil(ss1 * 3) * 2 + 1, (int)ceil(ss1 * 3) * 2 + 1), ss1);
+	absdiff(temp, src, dest);
+
+	Size ksize = Size(5, 5);
+	GaussianBlur(dest, dest, ksize, 1);
+	
+	/*Mat temp;
+	cv::pyrDown(src, temp);
+	cv::pyrUp(temp, dest);
+	absdiff(dest, src, dest);
+	Size ksize = Size(5, 5);
+	GaussianBlur(dest, dest, ksize, 2);
+	normalize(dest, dest, 0.f, 1.f, NORM_MINMAX);*/
+}
+
+void generateSamplingMaskRemappedDitherTest(vector<cv::Mat>& guide, cv::Mat& dest, const float sampling_ratio, const bool isUseAverage = false, int ditheringMethod = 0)
+{
+	CV_Assert(guide[0].depth() == CV_32F);
+
+	const int channels = (int)guide.size();
+
+	int sample_num = 0;
+	cv::Mat mask(guide[0].size(), CV_8U);
+
+	Mat v = guide[0].clone();
+	/*for (int i = 1; i < guide.size(); i++)
+	{
+		add(v, guide[i], v);
+	}*/
+	v.convertTo(v, CV_32F, 1.0 / (1 * 255));
+	sampling_imgproc(v, v);
+
+	sample_num = cp::generateSamplingMaskRemappedDitherWeight(v, mask, sampling_ratio, ditheringMethod, cp::DITHER_SCANORDER::MEANDERING, 0.1, cp::DITHER_POSTPROCESS::NO_POSTPROCESS);
+	sample_num = get_simd_floor(sample_num, 8);
+	//print_debug(sample_num);
+	dest.create(Size(sample_num, channels), CV_32F);
+
+	AutoBuffer<float*> s(channels);
+	AutoBuffer<float*> d(channels);
+	for (int c = 0; c < channels; c++)
+	{
+		d[c] = dest.ptr<float>(c);
+	}
+
+	for (int y = 0, count = 0; y < mask.rows; y++)
+	{
+		uchar* mask_ptr = mask.ptr<uchar>(y);
+		for (int c = 0; c < channels; c++)
+		{
+			s[c] = guide[c].ptr<float>(y);
+		}
+
+		for (int x = 0; x < mask.cols; x++)
+		{
+			if (mask_ptr[x] == 255)
+			{
+				for (int c = 0; c < channels; c++)
+				{
+					d[c][count] = s[c][x];
+				}
+				count++;
+				if (count == sample_num)return;
+			}
+		}
+	}
+}
 void ConstantTimeHDGFSingleBase::downsampleForClustering(std::vector<cv::Mat>& src, cv::Mat& dest, const bool isCropBoundary)
 {
 	const int channels = (int)src.size();
@@ -921,6 +994,8 @@ void ConstantTimeHDGFSingleBase::downsampleForClustering(std::vector<cv::Mat>& s
 		break;
 	case IMPORTANCE_MAP2:
 	{
+		generateSamplingMaskRemappedDitherTest(cropBufferForClustering, dest, 1.f / (downsampleRate * downsampleRate), false);
+		/*
 		const cv::Rect roi(cv::Point(boundaryLength, boundaryLength), cv::Size(img_size.width - 2 * boundaryLength, img_size.height - 2 * boundaryLength));
 		//std::cout << "IMPORTANCE MAP" << std::endl;
 		cropBufferForClustering2.resize(this->vsrc.size());
@@ -929,6 +1004,7 @@ void ConstantTimeHDGFSingleBase::downsampleForClustering(std::vector<cv::Mat>& s
 			cropBufferForClustering2[c] = this->vsrc[c](roi).clone();
 		}
 		cp::generateSamplingMaskRemappedDitherTexturenessPackedSoA(cropBufferForClustering2, cropBufferForClustering, dest, 1.f / (downsampleRate * downsampleRate));
+		*/
 	}
 	break;
 

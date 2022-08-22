@@ -1602,6 +1602,54 @@ void projectNeighborhoodEigenVec(const vector<Mat>& src, const Mat& evec, vector
 	}
 }
 
+void sortEigenVecVal(Mat& vec, Mat& val)
+{
+	//ordering check
+	bool ret = true;
+	for (int i = 0; i < val.size().area() - 1; i++)
+	{
+		if (abs(val.at<double>(i)) < abs(val.at<double>(i + 1)))
+		{
+			ret = false;
+		}
+	}
+	if (ret)return;
+
+	Mat a = vec.clone();
+	Mat b = val.clone();
+	for (int j = 0; j < b.size().area(); j++)
+	{
+		double maxval = 0.0;
+		int argmax = 0;
+		for (int i = 0; i < b.size().area(); i++)
+		{
+			if (maxval < abs(b.at<double>(i)))
+			{
+				maxval = abs(b.at<double>(i));
+				argmax = i;
+			}
+		}
+		val.at <double>(j) = abs(b.at<double>(argmax));
+		double* src = a.ptr<double>(argmax);
+		double* dst = vec.ptr<double>(j);
+		if (b.at<double>(argmax) >= 0)
+		{
+			for (int i = 0; i < val.cols; i++)
+			{
+				dst[i] = src[i];
+			}
+		}
+		else
+		{
+			for (int i = 0; i < val.cols; i++)
+			{
+				dst[i] = -src[i];
+			}
+		}
+		b.at<double>(argmax) = 0.0;
+	}
+}
+
 void patchPCA(const vector<Mat>& src, vector<Mat>& dst, const int neighborhood_r, const int dest_channels, const int border, const int method, const bool isParallel,
 	cv::Mat& projectionMatrix, cv::Mat& eigenValue)
 {
@@ -1628,7 +1676,7 @@ void patchPCA(const vector<Mat>& src, vector<Mat>& dst, const int neighborhood_r
 		CalcPatchCovarMatrix pcov; pcov.computeCov(src, neighborhood_r, cov, (NeighborhoodPCA)method, 1, isParallel);
 
 		eigen(cov, eigenValue, evec);
-
+		sortEigenVecVal(evec, eigenValue);
 		Mat projectionMatrix;
 		evec(Rect(0, 0, evec.cols, dest_channels)).convertTo(projectionMatrix, CV_32F);
 

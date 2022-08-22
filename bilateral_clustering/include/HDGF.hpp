@@ -478,10 +478,10 @@ private:
 	void alloc(cv::Mat& dst);
 	template<int use_fmath>
 	void computeWandAlpha(const std::vector<cv::Mat>& guide, const std::vector<cv::Mat>& guideRes);
+	
+	void split_blur(const int k);
 	template<int flag>
 	void merge(cv::Mat& dst, const int k);
-	template<int flag>
-	void split_blur_merge(cv::Mat& dst, const int k);
 
 	void body(const std::vector <cv::Mat>& src, cv::Mat& dst, const std::vector<cv::Mat>& guide) override;
 
@@ -635,11 +635,6 @@ public:
 	void getEigenValueInfo();
 };
 
-//Local Uniform Distribution
-void bilateralFilterLocalStatisticsPrior(const cv::Mat& src, cv::Mat& dest, const float sigma_range, const float sigma_space, const float delta);
-//void bilateralFilterLocalStatisticsPrior(const std::vector<cv::Mat>& src, std::vector<cv::Mat>& dest, const float sigma_range, const float sigma_space, const float delta, std::vector<cv::Mat>& smooth = std::vector<cv::Mat>());
-void bilateralFilterLocalStatisticsPrior(const std::vector<cv::Mat>& src, std::vector<cv::Mat>& dest, const float sigma_range, const float sigma_space, const float delta, std::vector<cv::Mat>& smooth);
-
 class TileHDGF
 {
 private:
@@ -673,3 +668,15 @@ public:
 
 void quantization(const cv::Mat& input_image, int K, cv::Mat& centers, cv::Mat& labels);
 void nQunat(const cv::Mat& input_image, int K, ClusterMethod cm);
+
+//Local Uniform Distribution
+void bilateralFilterLocalStatisticsPrior(const cv::Mat& src, cv::Mat& dest, const float sigma_range, const float sigma_space, const float delta);
+//void bilateralFilterLocalStatisticsPrior(const std::vector<cv::Mat>& src, std::vector<cv::Mat>& dest, const float sigma_range, const float sigma_space, const float delta, std::vector<cv::Mat>& smooth = std::vector<cv::Mat>());
+void bilateralFilterLocalStatisticsPrior(const std::vector<cv::Mat>& src, std::vector<cv::Mat>& dest, const float sigma_range, const float sigma_space, const float delta, std::vector<cv::Mat>& smooth);
+enum class BFLSPSchedule
+{
+	Compute,
+	LUT,
+	LUTSQRT,
+};
+void bilateralFilterLocalStatisticsPriorInternal(const std::vector<cv::Mat>& src, std::vector<cv::Mat>& split_inter, const cv::Mat& vecW, const float sigma_range, const float sigma_space, const float delta, cv::Mat& mask, BFLSPSchedule schedule, float* lut = nullptr);
