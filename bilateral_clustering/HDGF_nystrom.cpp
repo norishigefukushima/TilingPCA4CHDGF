@@ -43,7 +43,7 @@ void ConstantTimeHDGF_Nystrom::init(const cv::Mat& src, cv::Mat& dst)
 
 //	double sr = sigma_range / 255.0;
 	double sr = sigma_range;
-	coef = -0.5 * (1.0 / (sr * sr));
+	coef = float(-0.5 * (1.0 / (sr * sr)));
 
 	if (dst.empty() || dst.size() != src.size()) dst.create(src.size(), CV_32FC3);
 
@@ -345,11 +345,6 @@ void ConstantTimeHDGF_Nystrom::summing()
 #pragma omp parallel for
 	for (int y = 0; y < img_size.height; ++y)
 	{
-		__m256 mdenom;
-		__m256 mnumer0;
-		__m256 mnumer1;
-		__m256 mnumer2;
-
 		float* numer_ptr0 = split_numer[0].ptr<float>(y);
 		float* numer_ptr1 = split_numer[1].ptr<float>(y);
 		float* numer_ptr2 = split_numer[2].ptr<float>(y);

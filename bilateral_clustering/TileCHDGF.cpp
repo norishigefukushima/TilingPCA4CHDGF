@@ -23,6 +23,7 @@ TileConstantTimeHDGF::TileConstantTimeHDGF(cv::Size div_, ConstantTimeHDGF metho
 		}
 	}
 
+	eigenVectors.resize(div.area());
 	if (isDebug)
 	{
 		mu.resize(div.area());
@@ -584,6 +585,8 @@ void TileConstantTimeHDGF::jointPCAfilter(const cv::Mat& src, const cv::Mat& gui
 		scbf[0]->jointPCAfilter(srcSplit, guideSplit, guide_channels, dst, sigma_space, sigma_range, cm, K, gf_method
 			, gf_order, depth, isDownsampleClustering, downsampleRate, downsampleMethod, borderType);
 		tileSize = src.size();
+
+		eigenVectors[0] = scbf[0]->cloneEigenValue();
 	}
 	else
 	{
@@ -668,6 +671,7 @@ void TileConstantTimeHDGF::jointPCAfilter(const cv::Mat& src, const cv::Mat& gui
 			scbf[thread_num]->jointPCAfilter(subImageInput[thread_num], subImageGuide[thread_num], guide_channels, subImageOutput[thread_num],
 				sigma_space, sigma_range, cm, K, gf_method, gf_order, depth, isDownsampleClustering, downsampleRate, downsampleMethod, R, borderType);
 			cp::pasteTileAlign(subImageOutput[thread_num], dst, div, idx, r, 8, 8);
+			eigenVectors[n] = scbf[thread_num]->cloneEigenValue();
 #if DEBUG_CLUSTERING
 			Mat e; scbf[thread_num]->getClusteringErrorMap(e); cp::pasteTileAlign(e, emap, div, idx, r, 8, 8);
 #endif
@@ -698,6 +702,7 @@ void TileConstantTimeHDGF::jointPCAfilter(const std::vector<cv::Mat>& src, const
 		scbf[0]->jointfilter(src, guideSplit, dst, sigma_space, sigma_range, cm, K, gf_method
 			, gf_order, depth, isDownsampleClustering, downsampleRate, downsampleMethod, borderType);
 		tileSize = src[0].size();
+		eigenVectors[0] = scbf[0]->cloneEigenValue();
 	}
 	else
 	{
@@ -762,6 +767,8 @@ void TileConstantTimeHDGF::jointPCAfilter(const std::vector<cv::Mat>& src, const
 			scbf[thread_num]->jointPCAfilter(subImageInput[thread_num], subImageGuide[thread_num], guide_channels, subImageOutput[thread_num],
 				sigma_space, sigma_range, cm, K, gf_method, gf_order, depth, isDownsampleClustering, downsampleRate, downsampleMethod, R, borderType);
 			cp::pasteTileAlign(subImageOutput[thread_num], dst, div, idx, r, vecsize, vecsize);
+
+			eigenVectors[n] = scbf[thread_num]->cloneEigenValue();
 #if DEBUG_CLUSTERING
 			Mat e; scbf[thread_num]->getClusteringErrorMap(e); cp::pasteTileAlign(e, emap, div, idx, r, 8, 8);
 #endif
@@ -866,6 +873,7 @@ void TileConstantTimeHDGF::nlmfilter(const cv::Mat& src, const cv::Mat& guide, c
 			//merge(subImageInput[thread_num], subImageOutput[thread_num]);
 
 			cp::pasteTileAlign(subImageOutput[thread_num], dst, div, idx, r, 8, 8);
+			eigenVectors[n] = scbf[thread_num]->cloneEigenValue();
 #if DEBUG_CLUSTERING
 			Mat e; scbf[thread_num]->getClusteringErrorMap(e); cp::pasteTileAlign(e, emap, div, idx, r, 8, 8);
 #endif
@@ -889,4 +897,27 @@ void TileConstantTimeHDGF::getTileInfo()
 	print_debug(tileSize);
 	int borderLength = (tileSize.width - divImageSize.width) / 2;
 	print_debug(borderLength);
+}
+
+void TileConstantTimeHDGF::getEigenValueInfo()
+{
+	//static ConsoleImage ci(Size(640, 800), "Average Eigen Vectors", true);
+	Mat a = eigenVectors[0];
+	for (int i = 1; i < div.area(); i++)
+	{
+		add(a, eigenVectors[i], a);
+	}
+	double total = 0.0;
+	for (int i = 0; i < a.size().area(); i++)
+	{
+		total += a.at<double>(i) / div.area();
+	}
+	for (int i = 0; i < a.size().area(); i++)
+	{
+		const double ave = a.at<double>(i) / div.area();
+		std::cout << i << ": " << ave << " (" << ave / total * 100.0 << " %)" << std::endl;
+		//ci("%d: %f (%f) %%", i, ave, ave / total * 100.0);
+	}
+	//ci.show();
+		//ci.clear();
 }

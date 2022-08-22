@@ -207,6 +207,8 @@ class ConstantTimeHDGFSingleBase
 		reshaped_image8u, reshaped_image32f;
 protected:
 	cv::Mat projectionMatrix;//for PCA
+	cv::Mat eigenValue;//for PCA
+
 	const int num_timerblock_max = 10;
 	std::vector<cp::Timer> timer;
 	int downSampleImage = 1;
@@ -224,7 +226,7 @@ protected:
 	cp::KMeans kmcluster;
 	int boundaryLength = 0;
 	int borderType = cv::BORDER_DEFAULT;
-	
+
 	cv::Size img_size;
 	int channels = 3;//src channels
 	int guide_channels = 3;//guide channels
@@ -234,7 +236,7 @@ protected:
 	double sigma_space = 0.0;
 	double sigma_range = 0.0;
 	int spatial_order = 0;
-	
+
 	double kmeans_sigma = 25.0;
 	double kmeans_signal_max = 255.0;
 
@@ -323,6 +325,7 @@ public:
 		const bool isDownsampleClustering = false, const int downsampleRate = 2, const int downsampleMethod = cv::INTER_NEAREST, const int boundaryLength = 0, int border = cv::BORDER_DEFAULT);
 
 	cv::Mat getSamplingPoints();
+	cv::Mat cloneEigenValue();//clone eigenValue
 	void printRapTime();
 };
 
@@ -514,10 +517,10 @@ private:
 	template<int use_fmath>
 	void computeAlpha(const std::vector<cv::Mat>& guide, const int k);
 
-	template<int use_fmath>
-	void mergeRecomputeAlphaForUsingMu(std::vector<cv::Mat>& src, const int k, const bool isInit);
+	template<int use_fmath, const bool isInit>
+	void mergeRecomputeAlphaForUsingMu(std::vector<cv::Mat>& src, const int k);
 
-	template<int use_fmath, const bool isInit,int channels, int guide_channels>
+	template<int use_fmath, const bool isInit, int channels, int guide_channels>
 	void mergeRecomputeAlphaForUsingMuPCA(std::vector<cv::Mat>& guide, const int k);
 	template<int use_fmath, const bool isInit>
 	void mergeRecomputeAlphaForUsingMuPCA(std::vector<cv::Mat>& guide, const int k);
@@ -570,6 +573,9 @@ private:
 	std::vector<cv::Mat> mu;//for debug
 	cp::ConsoleImage ci;
 	ConstantTimeHDGF method;
+
+	//for stats
+	std::vector<cv::Mat> eigenVectors;
 public:
 	TileConstantTimeHDGF(cv::Size div, ConstantTimeHDGF method);
 	~TileConstantTimeHDGF();
@@ -626,6 +632,7 @@ public:
 
 	cv::Size getTileSize();
 	void getTileInfo();
+	void getEigenValueInfo();
 };
 
 //Local Uniform Distribution

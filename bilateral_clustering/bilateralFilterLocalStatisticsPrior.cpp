@@ -21,7 +21,7 @@ void bilateralFilterLocalStatisticsPrior(const std::vector<cv::Mat>& src, std::v
 		smooth[0].create(src[0].size(), CV_32F);
 		smooth[1].create(src[1].size(), CV_32F);
 		smooth[2].create(src[2].size(), CV_32F);
-		int D = 2 * ceil(sigma_space * 3.f) + 1;
+		int D = 2 * (int)ceil(sigma_space * 3.f) + 1;
 		cv::GaussianBlur(src[0], smooth[0], cv::Size(D, D), sigma_space);
 		cv::GaussianBlur(src[1], smooth[1], cv::Size(D, D), sigma_space);
 		cv::GaussianBlur(src[2], smooth[2], cv::Size(D, D), sigma_space);
@@ -37,8 +37,8 @@ void bilateralFilterLocalStatisticsPrior(const std::vector<cv::Mat>& src, std::v
 	float* d1 = dest[1].ptr<float>();
 	float* d2 = dest[2].ptr<float>();
 
-	const float sqrt2_sr_divpi = (sqrt(2.0) * sigma_range) / sqrt(CV_PI);
-	const float sqrt2_sr_inv = 1.f / (sqrt(2.0) * sigma_range);
+	const float sqrt2_sr_divpi = float((sqrt(2.0) * sigma_range) / sqrt(CV_PI));
+	const float sqrt2_sr_inv = float(1.0 / (sqrt(2.0) * sigma_range));
 	const float eps2 = delta * sqrt2_sr_inv;
 	const float exp2 = exp(-eps2 * eps2);
 	const float erf2 = erf(eps2);
@@ -97,14 +97,14 @@ static void bilateralFilterLocalStatisticsPrior32FC3(const cv::Mat& src, cv::Mat
 	dest.create(src.size(), src.type());
 
 	cv::Mat smooth;
-	int D = 2 * ceil(sigma_space * 3.f) + 1;
+	int D = 2 * (int)ceil(sigma_space * 3.f) + 1;
 	cv::GaussianBlur(src, smooth, cv::Size(D, D), sigma_space);
 	const float* s = src.ptr<float>();
 	float* sm = smooth.ptr<float>();
 	float* dst = dest.ptr<float>();
 
-	const float sqrt2_sr_divpi = sqrt(2.0 / CV_PI) * sigma_range;
-	const float sqrt2_sr_inv = 1.f / (sqrt(2.0) * sigma_range);
+	const float sqrt2_sr_divpi = float(sqrt(2.0 / CV_PI) * sigma_range);
+	const float sqrt2_sr_inv = float(1.0 / (sqrt(2.0) * sigma_range));
 	const float eps1 = delta * sqrt2_sr_inv;
 	const float exp1 = exp(-eps1 * eps1);
 	const float erf1 = erf(eps1);
@@ -131,14 +131,14 @@ static void bilateralFilterLocalStatisticsPrior32FC1(const cv::Mat& src, cv::Mat
 	dest.create(src.size(), src.type());
 
 	cv::Mat smooth;
-	int D = 2 * ceil(sigma_space * 3.f) + 1;
+	int D = 2 * (int)ceil(sigma_space * 3.f) + 1;
 	cv::GaussianBlur(src, smooth, cv::Size(D, D), sigma_space);
 	const float* s = src.ptr<float>();
 	float* m = smooth.ptr<float>();
 	float* d = dest.ptr<float>();
 
-	const float sqrt2_sr_divpi = sqrt(2.0 / CV_PI) * sigma_range;
-	const float sqrt2_sr_inv = 1.f / (sqrt(2.0) * sigma_range);
+	const float sqrt2_sr_divpi = float(sqrt(2.0 / CV_PI) * sigma_range);
+	const float sqrt2_sr_inv = float(1.0 / (sqrt(2.0) * sigma_range));
 	const float eps2 = delta * sqrt2_sr_inv;
 	const float exp2 = exp(-eps2 * eps2);
 	const float erf2 = erf(eps2);

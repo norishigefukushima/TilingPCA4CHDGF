@@ -429,15 +429,15 @@ void testClusteringCBF_SpringerNature(string wname)
 	//cv::Size division(2, 2);
 	//cv::Size division(1, 1);
 
-	int methodHDGF = RGB;
-	//int methodHDGF = RGBD;
+	//int methodHDGF = RGB;
+	int methodHDGF = RGBD;
 	//int methodHDGF = RGBIR;
 	//int methodHDGF = FNF;
 	//int methodHDGF = HSI;
 	//int methodHDGF = NLM;
 	createTrackbar("HDGF method", wname2, &methodHDGF, 5);
-	//int clusteringHDGFMethod = 0; //interpolation
-	int clusteringHDGFMethod = 1; //Nystrom
+	int clusteringHDGFMethod = 0; //interpolation
+	//int clusteringHDGFMethod = 1; //Nystrom
 	//int clusteringHDGFMethod = 2; //soft
 	createTrackbar("clusteringHDGF", wname2, &clusteringHDGFMethod, 2);
 
@@ -1106,8 +1106,10 @@ void testClusteringCBF_SpringerNature(string wname)
 				convmethod3 = convmethod;
 				dst.copyTo(dst3);
 			}
-		}
 
+			tHDGF->getEigenValueInfo();
+		}
+		
 		Mat v = dst1;
 		if (showIndex == 1) v = dst2;
 		if (showIndex == 2) v = dst3;

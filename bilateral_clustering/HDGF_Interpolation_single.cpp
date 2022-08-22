@@ -806,13 +806,13 @@ void ConstantTimeHDGF_InterpolationSingle::mergeNumerDenomMat(vector<Mat>& dest,
 	}
 }
 
-template<int use_fmath>
-void ConstantTimeHDGF_InterpolationSingle::mergeRecomputeAlphaForUsingMu(std::vector<cv::Mat>& src, const int k, const bool isInit)
+template<int use_fmath, const bool isInit>
+void ConstantTimeHDGF_InterpolationSingle::mergeRecomputeAlphaForUsingMu(std::vector<cv::Mat>& src, const int k)
 {
 	if (isJoint)
 	{
-		std::cout << "ConstantTimeHDGF_InterpolationSingle::recomputeAlpha must be src==guide" << std::endl;
-		CV_Assert(!isJoint);
+		//std::cout << "ConstantTimeHDGF_InterpolationSingle::recomputeAlpha must be src==guide" << std::endl;
+	//	CV_Assert(!isJoint);
 	}
 
 	const int w = src[0].cols;
@@ -908,64 +908,40 @@ void ConstantTimeHDGF_InterpolationSingle::mergeRecomputeAlphaForUsingMu(std::ve
 		AutoBuffer<const __m256*> msrc(channels);
 		AutoBuffer<const __m256*> minter(channels);
 		AutoBuffer<__m256*> mnumer(channels);
-		if (isInit)
+
+		for (int y = boundaryLength; y < h - boundaryLength; y++)
 		{
-			for (int y = boundaryLength; y < h - boundaryLength; y++)
+			for (int c = 0; c < channels; c++) msrc[c] = (const __m256*)src[c].ptr<float>(y, boundaryLength);
+			for (int c = 0; c < channels; c++) minter[c] = (const __m256*)intermat[c].ptr<float>(y, boundaryLength);
+			const __m256* minterw = (const __m256*)intermat[channels].ptr<float>(y, boundaryLength);
+
+			for (int c = 0; c < channels; c++)  mnumer[c] = (__m256*)numer[c].ptr<float>(y, boundaryLength);
+			__m256* mdenom = (__m256*)denom.ptr<float>(y, boundaryLength);
+
+			for (int x = boundaryLength; x < w - boundaryLength; x += 8)
 			{
-				for (int c = 0; c < channels; c++) msrc[c] = (const __m256*)src[c].ptr<float>(y, boundaryLength);
-				for (int c = 0; c < channels; c++) minter[c] = (const __m256*)intermat[c].ptr<float>(y, boundaryLength);
-				const __m256* minterw = (const __m256*)intermat[channels].ptr<float>(y, boundaryLength);
+				const __m256 norm = _mm256_div_avoidzerodiv_ps(_mm256_set1_ps(1.f), *minterw);
 
-				for (int c = 0; c < channels; c++)  mnumer[c] = (__m256*)numer[c].ptr<float>(y, boundaryLength);
-				__m256* mdenom = (__m256*)denom.ptr<float>(y, boundaryLength);
-
-				for (int x = boundaryLength; x < w - boundaryLength; x += 8)
+				__m256 msub = _mm256_fnmadd_ps(*minter[0], norm, *msrc[0]++);
+				__m256 mdiff = _mm256_mul_ps(msub, msub);
+				for (int c = 1; c < channels; c++)
 				{
-					const __m256 norm = _mm256_div_avoidzerodiv_ps(_mm256_set1_ps(1.f), *minterw);
+					msub = _mm256_fnmadd_ps(*minter[c], norm, *msrc[c]++);
+					mdiff = _mm256_fmadd_ps(msub, msub, mdiff);
+				}
 
-					__m256 msub = _mm256_fnmadd_ps(*minter[0], norm, *msrc[0]++);
-					__m256 mdiff = _mm256_mul_ps(msub, msub);
-					for (int c = 1; c < channels; c++)
-					{
-						msub = _mm256_fnmadd_ps(*minter[c], norm, *msrc[c]++);
-						mdiff = _mm256_fmadd_ps(msub, msub, mdiff);
-					}
+				const __m256 malpha = v_exp_ps<use_fmath>(_mm256_mul_ps(mcoef, mdiff));
 
-					const __m256 malpha = v_exp_ps<use_fmath>(_mm256_mul_ps(mcoef, mdiff));
-
+				if constexpr (isInit)
+				{
 					for (int c = 0; c < channels; c++)
 					{
 						*mnumer[c]++ = _mm256_mul_ps(malpha, *minter[c]++);
 					}
 					*mdenom++ = _mm256_mul_ps(malpha, *minterw++);
 				}
-			}
-		}
-		else
-		{
-			for (int y = boundaryLength; y < h - boundaryLength; y++)
-			{
-				for (int c = 0; c < channels; c++) msrc[c] = (const __m256*)src[c].ptr<float>(y, boundaryLength);
-				for (int c = 0; c < channels; c++) minter[c] = (const __m256*)intermat[c].ptr<float>(y, boundaryLength);
-				const __m256* minterw = (const __m256*)intermat[channels].ptr<float>(y, boundaryLength);
-
-				for (int c = 0; c < channels; c++)  mnumer[c] = (__m256*)numer[c].ptr<float>(y, boundaryLength);
-				__m256* mdenom = (__m256*)denom.ptr<float>(y, boundaryLength);
-
-				for (int x = boundaryLength; x < w - boundaryLength; x += 8)
+				else
 				{
-					const __m256 norm = _mm256_div_avoidzerodiv_ps(_mm256_set1_ps(1.f), *minterw);
-
-					__m256 msub = _mm256_fnmadd_ps(*minter[0], norm, *msrc[0]++);
-					__m256 mdiff = _mm256_mul_ps(msub, msub);
-					for (int c = 1; c < channels; c++)
-					{
-						msub = _mm256_fnmadd_ps(*minter[c], norm, *msrc[c]++);
-						mdiff = _mm256_fmadd_ps(msub, msub, mdiff);
-					}
-
-					const __m256 malpha = v_exp_ps<use_fmath>(_mm256_mul_ps(mcoef, mdiff));
-
 					for (int c = 0; c < channels; c++)
 					{
 						*mnumer[c]++ = _mm256_fmadd_ps(malpha, *minter[c]++, *mnumer[c]);
@@ -1084,7 +1060,52 @@ void ConstantTimeHDGF_InterpolationSingle::mergeRecomputeAlphaForUsingMuPCA(std:
 	AutoBuffer<__m256*> mnumer(channels);
 	AutoBuffer<__m256> mpca(guide_channels);
 
-	if (channels == 3 && guide_channels == 1)
+	if (channels == 1 && guide_channels == 4)
+	{
+		AutoBuffer<const __m256*> mguide(guide_channels);
+		AutoBuffer<__m256> mpca(guide_channels);
+		for (int y = boundaryLength; y < h - boundaryLength; y++)
+		{
+			for (int c = 0; c < guide_channels; c++) mguide[c] = (const __m256*)guide[c].ptr<float>(y, boundaryLength);
+
+			const __m256* minter0 = (const __m256*)intermat[0].ptr<float>(y, boundaryLength);
+			const __m256* minterw = (const __m256*)intermat[1].ptr<float>(y, boundaryLength);
+			__m256* mnumer0 = (__m256*)numer[0].ptr<float>(y, boundaryLength);
+			__m256* mdenom_ = (__m256*)denom.ptr<float>(y, boundaryLength);
+
+			for (int x = boundaryLength; x < w - boundaryLength; x += 8)
+			{
+				const __m256 norm = _mm256_div_avoidzerodiv_ps(_mm256_set1_ps(1.f), *minterw);
+				mpca[0] = _mm256_mul_ps(*minter0, p[0][0]);
+				mpca[1] = _mm256_mul_ps(*minter0, p[1][0]);
+				mpca[2] = _mm256_mul_ps(*minter0, p[2][0]);
+				mpca[3] = _mm256_mul_ps(*minter0, p[3][0]);
+
+				__m256 msub = _mm256_fnmadd_ps(mpca[0], norm, *mguide[0]++);
+				__m256 mdiff = _mm256_mul_ps(msub, msub);
+				msub = _mm256_fnmadd_ps(mpca[1], norm, *mguide[1]++);
+				mdiff = _mm256_fmadd_ps(msub, msub, mdiff);
+				msub = _mm256_fnmadd_ps(mpca[2], norm, *mguide[2]++);
+				mdiff = _mm256_fmadd_ps(msub, msub, mdiff);
+				msub = _mm256_fnmadd_ps(mpca[3], norm, *mguide[3]++);
+				mdiff = _mm256_fmadd_ps(msub, msub, mdiff);
+
+				const __m256 malpha = v_exp_ps<use_fmath>(_mm256_mul_ps(mcoef, mdiff));
+
+				if constexpr(isInit)
+				{
+					*mnumer0++ = _mm256_mul_ps(malpha, *minter0++);
+					*mdenom_++ = _mm256_mul_ps(malpha, *minterw++);
+				}
+				else
+				{
+					*mnumer0++ = _mm256_fmadd_ps(malpha, *minter0++, *mnumer0);
+					*mdenom_++ = _mm256_fmadd_ps(malpha, *minterw++, *mdenom_);
+				}
+			}
+		}
+	}
+	else if (channels == 3 && guide_channels == 1)
 	{
 		AutoBuffer<const __m256*> mguide(guide_channels);
 		AutoBuffer<__m256> mpca(guide_channels);
@@ -1112,7 +1133,7 @@ void ConstantTimeHDGF_InterpolationSingle::mergeRecomputeAlphaForUsingMuPCA(std:
 				__m256 mdiff = _mm256_mul_ps(msub, msub);
 
 				const __m256 malpha = v_exp_ps<use_fmath>(_mm256_mul_ps(mcoef, mdiff));
-				if (isInit)
+				if constexpr(isInit)
 				{
 					*mnumer0++ = _mm256_mul_ps(malpha, *minter0++);
 					*mnumer1++ = _mm256_mul_ps(malpha, *minter1++);
@@ -1162,7 +1183,7 @@ void ConstantTimeHDGF_InterpolationSingle::mergeRecomputeAlphaForUsingMuPCA(std:
 				mdiff = _mm256_fmadd_ps(msub, msub, mdiff);
 
 				const __m256 malpha = v_exp_ps<use_fmath>(_mm256_mul_ps(mcoef, mdiff));
-				if (isInit)
+				if constexpr(isInit)
 				{
 					*mnumer0++ = _mm256_mul_ps(malpha, *minter0++);
 					*mnumer1++ = _mm256_mul_ps(malpha, *minter1++);
@@ -1217,7 +1238,7 @@ void ConstantTimeHDGF_InterpolationSingle::mergeRecomputeAlphaForUsingMuPCA(std:
 				mdiff = _mm256_fmadd_ps(msub, msub, mdiff);
 
 				const __m256 malpha = v_exp_ps<use_fmath>(_mm256_mul_ps(mcoef, mdiff));
-				if (isInit)
+				if constexpr (isInit)
 				{
 					*mnumer0++ = _mm256_mul_ps(malpha, *minter0++);
 					*mnumer1++ = _mm256_mul_ps(malpha, *minter1++);
@@ -1277,7 +1298,7 @@ void ConstantTimeHDGF_InterpolationSingle::mergeRecomputeAlphaForUsingMuPCA(std:
 				mdiff = _mm256_fmadd_ps(msub, msub, mdiff);
 
 				const __m256 malpha = v_exp_ps<use_fmath>(_mm256_mul_ps(mcoef, mdiff));
-				if (isInit)
+				if constexpr (isInit)
 				{
 					*mnumer0++ = _mm256_mul_ps(malpha, *minter0++);
 					*mnumer1++ = _mm256_mul_ps(malpha, *minter1++);
@@ -1331,7 +1352,7 @@ void ConstantTimeHDGF_InterpolationSingle::mergeRecomputeAlphaForUsingMuPCA(std:
 				}
 
 				const __m256 malpha = v_exp_ps<use_fmath>(_mm256_mul_ps(mcoef, mdiff));
-				if (isInit)
+				if constexpr (isInit)
 				{
 					*mnumer0++ = _mm256_mul_ps(malpha, *minter0++);
 					*mnumer1++ = _mm256_mul_ps(malpha, *minter1++);
@@ -1414,7 +1435,7 @@ void ConstantTimeHDGF_InterpolationSingle::mergeRecomputeAlpha(const std::vector
 	const int wk = (isUsePrecomputedWforeachK) ? k : 0;
 	vector<Mat> intermat(channels + 1);
 	mergeNumerDenomMat(intermat, k, downSampleImage);
-
+	AutoBuffer<const __m256*> mguide(guide_channels);
 	if (channels == 1 && guide_channels == 1)
 	{
 		const __m256 mc0 = _mm256_set1_ps(mu.at<float>(k));
@@ -1488,9 +1509,7 @@ void ConstantTimeHDGF_InterpolationSingle::mergeRecomputeAlpha(const std::vector
 		const __m256 mc2 = _mm256_set1_ps(mu.at<cv::Vec3f>(k)[2]);
 		for (int y = boundaryLength; y < img_size.height - boundaryLength; y++)
 		{
-			const __m256* im0 = (__m256*)guide[0].ptr<float>(y, boundaryLength);
-			const __m256* im1 = (__m256*)guide[1].ptr<float>(y, boundaryLength);
-			const __m256* im2 = (__m256*)guide[2].ptr<float>(y, boundaryLength);
+			for (int c = 0; c < guide_channels; c++) mguide[c] = (const __m256*)guide[c].ptr<float>(y, boundaryLength);
 
 			const __m256* inter0 = (__m256*)intermat[0].ptr<float>(y, boundaryLength);
 			const __m256* interw = (__m256*)intermat[1].ptr<float>(y, boundaryLength);
@@ -1499,11 +1518,11 @@ void ConstantTimeHDGF_InterpolationSingle::mergeRecomputeAlpha(const std::vector
 
 			for (int x = boundaryLength; x < img_size.width - boundaryLength; x += 8)
 			{
-				__m256 msub = _mm256_sub_ps(*im0++, mc0);
+				__m256 msub = _mm256_sub_ps(*mguide[0]++, mc0);
 				__m256 mdiff = _mm256_mul_ps(msub, msub);
-				msub = _mm256_sub_ps(*im1++, mc1);
+				msub = _mm256_sub_ps(*mguide[1]++, mc1);
 				mdiff = _mm256_fmadd_ps(msub, msub, mdiff);
-				msub = _mm256_sub_ps(*im2++, mc2);
+				msub = _mm256_sub_ps(*mguide[2]++, mc2);
 				mdiff = _mm256_fmadd_ps(msub, msub, mdiff);
 				const __m256 malpha = v_exp_ps<use_fmath>(_mm256_mul_ps(mcoef, mdiff));
 
@@ -1522,43 +1541,40 @@ void ConstantTimeHDGF_InterpolationSingle::mergeRecomputeAlpha(const std::vector
 	}
 	else if (channels == 1 && guide_channels == 4)
 	{
-		const __m256 mc0 = _mm256_set1_ps(mu.at<cv::Vec3f>(k)[0]);
-		const __m256 mc1 = _mm256_set1_ps(mu.at<cv::Vec3f>(k)[1]);
-		const __m256 mc2 = _mm256_set1_ps(mu.at<cv::Vec3f>(k)[2]);
-		const __m256 mc3 = _mm256_set1_ps(mu.at<cv::Vec3f>(k)[3]);
+		const __m256 mc0 = _mm256_set1_ps(mu.at<cv::Vec4f>(k)[0]);
+		const __m256 mc1 = _mm256_set1_ps(mu.at<cv::Vec4f>(k)[1]);
+		const __m256 mc2 = _mm256_set1_ps(mu.at<cv::Vec4f>(k)[2]);
+		const __m256 mc3 = _mm256_set1_ps(mu.at<cv::Vec4f>(k)[3]);
 		for (int y = boundaryLength; y < img_size.height - boundaryLength; y++)
 		{
-			const __m256* im0 = (__m256*)guide[0].ptr<float>(y, boundaryLength);
-			const __m256* im1 = (__m256*)guide[1].ptr<float>(y, boundaryLength);
-			const __m256* im2 = (__m256*)guide[2].ptr<float>(y, boundaryLength);
-			const __m256* im3 = (__m256*)guide[3].ptr<float>(y, boundaryLength);
+			for (int c = 0; c < guide_channels; c++) mguide[c] = (const __m256*)guide[c].ptr<float>(y, boundaryLength);
 
-			const __m256* inter0 = (__m256*)intermat[0].ptr<float>(y, boundaryLength);
-			const __m256* interw = (__m256*)intermat[1].ptr<float>(y, boundaryLength);
-			__m256* numer0 = (__m256*)numer[0].ptr<float>(y, boundaryLength);
-			__m256* denom_ = (__m256*)denom.ptr<float>(y, boundaryLength);
+			const __m256* minter0 = (__m256*)intermat[0].ptr<float>(y, boundaryLength);
+			const __m256* minterw = (__m256*)intermat[1].ptr<float>(y, boundaryLength);
+			__m256* mnumer0 = (__m256*)numer[0].ptr<float>(y, boundaryLength);
+			__m256* mdenom_ = (__m256*)denom.ptr<float>(y, boundaryLength);
 
 			for (int x = boundaryLength; x < img_size.width - boundaryLength; x += 8)
 			{
-				__m256 msub = _mm256_sub_ps(*im0++, mc0);
+				__m256 msub = _mm256_sub_ps(*mguide[0]++, mc0);
 				__m256 mdiff = _mm256_mul_ps(msub, msub);
-				msub = _mm256_sub_ps(*im1++, mc1);
+				msub = _mm256_sub_ps(*mguide[1]++, mc1);
 				mdiff = _mm256_fmadd_ps(msub, msub, mdiff);
-				msub = _mm256_sub_ps(*im2++, mc2);
+				msub = _mm256_sub_ps(*mguide[2]++, mc2);
 				mdiff = _mm256_fmadd_ps(msub, msub, mdiff);
-				msub = _mm256_sub_ps(*im3++, mc3);
+				msub = _mm256_sub_ps(*mguide[3]++, mc3);
 				mdiff = _mm256_fmadd_ps(msub, msub, mdiff);
 				const __m256 malpha = v_exp_ps<use_fmath>(_mm256_mul_ps(mcoef, mdiff));
 
 				if constexpr (isInit)
 				{
-					*numer0++ = _mm256_mul_ps(malpha, *inter0++);
-					*denom_++ = _mm256_mul_ps(malpha, *interw++);
+					*mnumer0++ = _mm256_mul_ps(malpha, *minter0++);
+					*mdenom_++ = _mm256_mul_ps(malpha, *minterw++);
 				}
 				else
 				{
-					*numer0++ = _mm256_fmadd_ps(malpha, *inter0++, *numer0);
-					*denom_++ = _mm256_fmadd_ps(malpha, *interw++, *denom_);
+					*mnumer0++ = _mm256_fmadd_ps(malpha, *minter0++, *mnumer0);
+					*mdenom_++ = _mm256_fmadd_ps(malpha, *minterw++, *mdenom_);
 				}
 			}
 		}
@@ -2013,11 +2029,20 @@ void ConstantTimeHDGF_InterpolationSingle::mergePreComputedAlpha(const int k, co
 void ConstantTimeHDGF_InterpolationSingle::merge(const int k, const bool isInit)
 {
 	//merge
-	if (isUseLocalMu && (!isJoint))
+	//if (isUseLocalMu && (!isJoint))
+	if (isUseLocalMu)
 	{
 		//std::cout << "here: using local mu" << std::endl;
-		if (isUseFmath) mergeRecomputeAlphaForUsingMu<1>(vsrc, k, isInit);
-		else mergeRecomputeAlphaForUsingMu<0>(vsrc, k, isInit);
+		if (isInit)
+		{
+			if (isUseFmath) mergeRecomputeAlphaForUsingMu<1, true>(vsrc, k);
+			else mergeRecomputeAlphaForUsingMu<0, true>(vsrc, k);
+		}
+		else
+		{
+			if (isUseFmath) mergeRecomputeAlphaForUsingMu<1, false>(vsrc, k);
+			else mergeRecomputeAlphaForUsingMu<0, false>(vsrc, k);
+		}
 	}
 	else if (isUseLocalMu && (statePCA == 2))
 	{

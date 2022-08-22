@@ -1602,7 +1602,8 @@ void projectNeighborhoodEigenVec(const vector<Mat>& src, const Mat& evec, vector
 	}
 }
 
-void patchPCA(const vector<Mat>& src, vector<Mat>& dst, const int neighborhood_r, const int dest_channels, const int border, const int method, const bool isParallel)
+void patchPCA(const vector<Mat>& src, vector<Mat>& dst, const int neighborhood_r, const int dest_channels, const int border, const int method, const bool isParallel,
+	cv::Mat& projectionMatrix, cv::Mat& eigenValue)
 {
 	CV_Assert(src[0].depth() == CV_8U || src[0].depth() == CV_32F);
 
@@ -1623,27 +1624,27 @@ void patchPCA(const vector<Mat>& src, vector<Mat>& dst, const int neighborhood_r
 
 	if (method < (int)NeighborhoodPCA::OPENCV_PCA)
 	{
-		Mat cov, eval, evec;
+		Mat cov, evec;
 		CalcPatchCovarMatrix pcov; pcov.computeCov(src, neighborhood_r, cov, (NeighborhoodPCA)method, 1, isParallel);
 
-		eigen(cov, eval, evec);
+		eigen(cov, eigenValue, evec);
 
-		Mat transmat;
-		evec(Rect(0, 0, evec.cols, dest_channels)).convertTo(transmat, CV_32F);
+		Mat projectionMatrix;
+		evec(Rect(0, 0, evec.cols, dest_channels)).convertTo(projectionMatrix, CV_32F);
 
 		switch (dest_channels)
 		{
-		case 1: projectNeighborhoodEigenVec<1>(src, transmat, dst, neighborhood_r, border); break;
-		case 2: projectNeighborhoodEigenVec<2>(src, transmat, dst, neighborhood_r, border); break;
-		case 3: projectNeighborhoodEigenVec<3>(src, transmat, dst, neighborhood_r, border); break;
-		case 4: projectNeighborhoodEigenVec<4>(src, transmat, dst, neighborhood_r, border); break;
-		case 5: projectNeighborhoodEigenVec<5>(src, transmat, dst, neighborhood_r, border); break;
-		case 6: projectNeighborhoodEigenVec<6>(src, transmat, dst, neighborhood_r, border); break;
-		case 7: projectNeighborhoodEigenVec<7>(src, transmat, dst, neighborhood_r, border); break;
-		case 8: projectNeighborhoodEigenVec<8>(src, transmat, dst, neighborhood_r, border); break;
-		case 9: projectNeighborhoodEigenVec<9>(src, transmat, dst, neighborhood_r, border); break;
+		case 1: projectNeighborhoodEigenVec<1>(src, projectionMatrix, dst, neighborhood_r, border); break;
+		case 2: projectNeighborhoodEigenVec<2>(src, projectionMatrix, dst, neighborhood_r, border); break;
+		case 3: projectNeighborhoodEigenVec<3>(src, projectionMatrix, dst, neighborhood_r, border); break;
+		case 4: projectNeighborhoodEigenVec<4>(src, projectionMatrix, dst, neighborhood_r, border); break;
+		case 5: projectNeighborhoodEigenVec<5>(src, projectionMatrix, dst, neighborhood_r, border); break;
+		case 6: projectNeighborhoodEigenVec<6>(src, projectionMatrix, dst, neighborhood_r, border); break;
+		case 7: projectNeighborhoodEigenVec<7>(src, projectionMatrix, dst, neighborhood_r, border); break;
+		case 8: projectNeighborhoodEigenVec<8>(src, projectionMatrix, dst, neighborhood_r, border); break;
+		case 9: projectNeighborhoodEigenVec<9>(src, projectionMatrix, dst, neighborhood_r, border); break;
 		default:
-			projectNeighborhoodEigenVecCn(src, transmat, dst, neighborhood_r, border);
+			projectNeighborhoodEigenVecCn(src, projectionMatrix, dst, neighborhood_r, border);
 			break;
 		}
 	}
@@ -1667,28 +1668,26 @@ void patchPCA(const vector<Mat>& src, vector<Mat>& dst, const int neighborhood_r
 			cv::calcCovarMatrix(x, cov, mean, cv::COVAR_NORMAL | cv::COVAR_SCALE | cv::COVAR_ROWS);
 			//cv::calcCovarMatrix(x, cov, mean, cv::COVAR_NORMAL |  cv::COVAR_ROWS);
 			//print_mat(cov);
-			Mat eval, evec;
-			eigen(cov, eval, evec);
+			Mat evec;
+			eigen(cov, eigenValue, evec);
 
-
-			Mat transmat;
 			//print_matinfo(evec);
-			evec(Rect(0, 0, evec.cols, dest_channels)).convertTo(transmat, CV_32F);
+			evec(Rect(0, 0, evec.cols, dest_channels)).convertTo(projectionMatrix, CV_32F);
 			//transmat = Mat::eye(transmat.size(), CV_32F);
 
 			switch (dest_channels)
 			{
-			case 1: projectNeighborhoodEigenVec<1>(src, transmat, dst, neighborhood_r, border); break;
-			case 2: projectNeighborhoodEigenVec<2>(src, transmat, dst, neighborhood_r, border); break;
-			case 3: projectNeighborhoodEigenVec<3>(src, transmat, dst, neighborhood_r, border); break;
-			case 4: projectNeighborhoodEigenVec<4>(src, transmat, dst, neighborhood_r, border); break;
-			case 5: projectNeighborhoodEigenVec<5>(src, transmat, dst, neighborhood_r, border); break;
-			case 6: projectNeighborhoodEigenVec<6>(src, transmat, dst, neighborhood_r, border); break;
-			case 7: projectNeighborhoodEigenVec<7>(src, transmat, dst, neighborhood_r, border); break;
-			case 8: projectNeighborhoodEigenVec<8>(src, transmat, dst, neighborhood_r, border); break;
-			case 9: projectNeighborhoodEigenVec<9>(src, transmat, dst, neighborhood_r, border); break;
+			case 1: projectNeighborhoodEigenVec<1>(src, projectionMatrix, dst, neighborhood_r, border); break;
+			case 2: projectNeighborhoodEigenVec<2>(src, projectionMatrix, dst, neighborhood_r, border); break;
+			case 3: projectNeighborhoodEigenVec<3>(src, projectionMatrix, dst, neighborhood_r, border); break;
+			case 4: projectNeighborhoodEigenVec<4>(src, projectionMatrix, dst, neighborhood_r, border); break;
+			case 5: projectNeighborhoodEigenVec<5>(src, projectionMatrix, dst, neighborhood_r, border); break;
+			case 6: projectNeighborhoodEigenVec<6>(src, projectionMatrix, dst, neighborhood_r, border); break;
+			case 7: projectNeighborhoodEigenVec<7>(src, projectionMatrix, dst, neighborhood_r, border); break;
+			case 8: projectNeighborhoodEigenVec<8>(src, projectionMatrix, dst, neighborhood_r, border); break;
+			case 9: projectNeighborhoodEigenVec<9>(src, projectionMatrix, dst, neighborhood_r, border); break;
 			default:
-				projectNeighborhoodEigenVecCn(src, transmat, dst, neighborhood_r, border);
+				projectNeighborhoodEigenVecCn(src, projectionMatrix, dst, neighborhood_r, border);
 				break;
 			}
 			/*
@@ -1698,6 +1697,13 @@ void patchPCA(const vector<Mat>& src, vector<Mat>& dst, const int neighborhood_r
 			*/
 		}
 	}
+}
+
+void patchPCA(const vector<Mat>& src, vector<Mat>& dst, const int neighborhood_r, const int dest_channels, const int border, const int method, const bool isParallel)
+{
+	cv::Mat projectionMatrix;
+	cv::Mat eigenValue;
+	patchPCA(src, dst, neighborhood_r, dest_channels, border, method, isParallel, projectionMatrix, eigenValue);
 }
 #pragma endregion
 

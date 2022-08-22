@@ -36,7 +36,7 @@ void ConstantTimeHDGF_SoftAssignment::init(const cv::Mat& src, cv::Mat& dst)
 	//	double sr = sigma_range / 255.0;
 	double sr = sigma_range;
 
-	coef = -0.5 * (1.0 / (sr * sr));
+	coef = float(-0.5 * (1.0 / (sr * sr)));
 
 	if (dst.empty() || dst.size() != src.size()) dst.create(src.size(), CV_32FC3);
 

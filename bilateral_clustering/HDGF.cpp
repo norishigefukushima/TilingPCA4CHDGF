@@ -1,6 +1,9 @@
 #include "HDGF.hpp"
 #include "patchPCA.hpp"
 
+using namespace std;
+using namespace cv;
+
 void randomSet(const int K, const int destChannels, cv::Mat& dest_center, float minv, float maxv)
 {
 	dest_center.create(K, destChannels, CV_32F);
@@ -1098,7 +1101,7 @@ void ConstantTimeHDGFSingleBase::jointPCAfilter(const std::vector<cv::Mat>& src,
 	guide_channels = pca_channels;
 	vguide.resize(guide_channels);
 	//std::cout << "jointPCA" << std::endl;
-	cp::cvtColorPCA(guide, vguide, pca_channels, projectionMatrix);
+	cp::cvtColorPCA(guide, vguide, pca_channels, projectionMatrix, eigenValue);
 	body(vsrc, dst, vguide);
 }
 
@@ -1117,7 +1120,7 @@ void ConstantTimeHDGFSingleBase::nlmfilter(const std::vector<cv::Mat>& src, cons
 		vsrc[c] = src[c];
 	}
 
-	patchPCA(guide, vguide, parch_r, reduced_dim, 4, patchPCAMethod);
+	patchPCA(guide, vguide, parch_r, reduced_dim, border, patchPCAMethod, false, projectionMatrix, eigenValue);
 	guide_channels = (int)vguide.size();
 	/*for (int c = 0; c < guide_channels; c++)
 	{
@@ -1235,6 +1238,11 @@ void ConstantTimeHDGFSingleBase::setPatchPCAMethod(int method)
 cv::Mat ConstantTimeHDGFSingleBase::getSamplingPoints()
 {
 	return this->mu;
+}
+
+cv::Mat ConstantTimeHDGFSingleBase::cloneEigenValue()
+{
+	return this->eigenValue.clone();
 }
 
 void ConstantTimeHDGFSingleBase::printRapTime()
