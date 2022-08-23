@@ -667,7 +667,7 @@ void ConstantTimeHDGFSingleBase::clustering()
 	//print_matinfo(reshaped_image32f);
 	if (reshaped_image32f.cols < K)
 	{
-		std::cout << "K is large for K-means: reshaped_image32f.cols < K" << std::endl;
+		std::cout << "K is large for K-means: K, reshaped_image32f.cols (" << reshaped_image32f.cols << ", " << K << ")" << std::endl;
 	}
 
 	cv::TermCriteria criteria(cv::TermCriteria::COUNT, iterations, 1);
@@ -879,7 +879,7 @@ void sampling_imgproc(Mat& src_, Mat& dest)
 {
 	Mat src = src_.clone();
 
-	
+
 	double ss1 = 3.0;
 	Mat temp;
 	GaussianBlur(src, temp, Size((int)ceil(ss1 * 3) * 2 + 1, (int)ceil(ss1 * 3) * 2 + 1), ss1);
@@ -887,7 +887,7 @@ void sampling_imgproc(Mat& src_, Mat& dest)
 
 	Size ksize = Size(5, 5);
 	GaussianBlur(dest, dest, ksize, 1);
-	
+
 	/*Mat temp;
 	cv::pyrDown(src, temp);
 	cv::pyrUp(temp, dest);
@@ -948,6 +948,7 @@ void generateSamplingMaskRemappedDitherTest(vector<cv::Mat>& guide, cv::Mat& des
 		}
 	}
 }
+
 void ConstantTimeHDGFSingleBase::downsampleForClustering(std::vector<cv::Mat>& src, cv::Mat& dest, const bool isCropBoundary)
 {
 	const int channels = (int)src.size();
@@ -979,7 +980,7 @@ void ConstantTimeHDGFSingleBase::downsampleForClustering(std::vector<cv::Mat>& s
 	case LANCZOS:
 	{
 		//std::cout << "DOWNSAMPLE" << std::endl;
-		const cv::Size size = cv::Size(img_size.width / downsampleRate, img_size.height / downsampleRate);
+		const cv::Size size = cropBufferForClustering[0].size()/ downsampleRate;
 		dest.create(cv::Size(size.area(), channels), CV_32F);
 		for (int c = 0; c < channels; c++)
 		{
@@ -1264,12 +1265,13 @@ void ConstantTimeHDGFSingleBase::setBoundaryLength(const int length)
 
 void ConstantTimeHDGFSingleBase::setParameter(cv::Size img_size, double sigma_space, double sigma_range, ClusterMethod cm, int K, cp::SpatialFilterAlgorithm method, int gf_order, int depth, bool isDownsampleClustering, int downsampleRate, int downsampleMethod, int boundarylength, int borderType)
 {
-	this->num_sample_max = cv::Size(img_size.width / downsampleRate, img_size.height / downsampleRate).area();
+	this->num_sample_max = cv::Size((img_size.width - 2 * boundarylength) / downsampleRate, (img_size.height - 2 * boundarylength) / downsampleRate).area();
 	this->depth = depth;
 
 	this->K = std::min(K, num_sample_max);
 	if (this->K == num_sample_max) 	std::cout << "full sample (debug message)" << K << "/" << num_sample_max << std::endl;
-	//std::cout << (double)K / num_sample_max << std::endl;
+	//std::cout << (double)K / num_sample_max<<": K, numsample_max ("<<K<<", "<<num_sample_max<<")" << std::endl;
+	//print_debug(img_size);
 	this->img_size = img_size;
 	this->sigma_space = sigma_space;
 	this->spatial_order = gf_order;
