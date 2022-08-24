@@ -1,5 +1,4 @@
 #include "HDGF.hpp"
-#include "mediancut.hpp"
 
 
 void ConstantTimeHDGF_SoftAssignment::init(const cv::Mat& src, cv::Mat& dst)

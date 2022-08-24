@@ -1,6 +1,5 @@
 #include "HDGF.hpp"
-#include "patchPCA.hpp"
-#include <opencp.hpp>
+
 using namespace std;
 using namespace cv;
 

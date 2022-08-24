@@ -1,7 +1,4 @@
 #include "HDGF.hpp"
-#include "mediancut.hpp"
-
-
 
 void ConstantTimeHDGF_Nystrom::init(const cv::Mat& src, cv::Mat& dst)
 {

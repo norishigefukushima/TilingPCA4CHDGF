@@ -1,7 +1,4 @@
 #include "HDGF.hpp"
-#include "patchPCA.hpp"
-
-#include <opencp.hpp>
 
 void ConstantTimeHDGF_SoftAssignmentSingle::setLambdaInterpolation(const float lambda)
 {

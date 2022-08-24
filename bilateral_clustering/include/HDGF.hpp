@@ -1,6 +1,4 @@
 #pragma once
-#include "common.hpp"
-//#include "GaussianFilter.hpp"
 #include <omp.h>
 #include <opencp.hpp>
 #include <spatialfilter/SpatialFilter.hpp>

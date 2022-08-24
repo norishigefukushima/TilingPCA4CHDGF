@@ -1,5 +1,4 @@
 #include "HDGF.hpp"
-#include <opencp.hpp>
 
 //#define DEBUG_OMP_DISABLE 
 using namespace cv;

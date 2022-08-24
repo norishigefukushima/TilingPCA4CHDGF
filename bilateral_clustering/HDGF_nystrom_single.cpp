@@ -1,6 +1,8 @@
 #include "HDGF.hpp"
-#include "patchPCA.hpp"
-#include <opencp.hpp>
+#ifdef USE_EIGEN
+#include <Eigen/Eigen>
+#include <opencv2/core/eigen.hpp>
+#endif
 
 void ConstantTimeHDGF_NystromSingle::alloc(cv::Mat& dst)
 {
@@ -104,11 +106,33 @@ void ConstantTimeHDGF_NystromSingle::computeAandEVD(const cv::Mat& mu, cv::Mat& 
 		}
 		//A64.convertTo(A, CV_32F);
 		//eigen value decomposition lambda: large->small, vector: row major 
+
+#ifdef USE_EIGEN
+		Eigen::MatrixXd W4Eigen;
+		cv::cv2eigen<double>(A64, W4Eigen);
+		Eigen::EigenSolver<Eigen::MatrixXd> esolve(W4Eigen, true);
+
+		Eigen::MatrixXd a = esolve.eigenvalues().real();
+		Eigen::MatrixXd b = esolve.eigenvectors().real().transpose();
+
 		cv::Mat lambdaA64;
 		cv::Mat eigenvecA64;
+		cv::eigen2cv(a, lambdaA64);
+		cv::eigen2cv(b, eigenvecA64);
+#else
+		cv::Mat lambdaA64;
+		cv::Mat eigenvecA64;
+		
 		cv::eigen(A64, lambdaA64, eigenvecA64);
+#endif
 		lambdaA64.convertTo(lambdaA, CV_32F);
 		eigenvecA64.convertTo(eigenvecA, CV_32F);
+	}
+
+	for (int i = 0; i < lambdaA.size().area(); i++)
+	{
+		float v = lambdaA.at<float>(i);
+		if (abs(v) < FLT_EPSILON)lambdaA.at<float>(i) = FLT_EPSILON;
 	}
 }
 
@@ -821,7 +845,8 @@ void ConstantTimeHDGF_NystromSingle::split_blur_merge()
 				cv::waitKey();*/
 
 			}
-			const __m256 mlambdainv = (lambdalPtr[0] != 0) ? _mm256_set1_ps((1.f / lambdalPtr[0])) : _mm256_set1_ps((1.f));
+			const __m256 mlambdainv = (lambdalPtr[0] != 0.f) ? _mm256_set1_ps((1.f / lambdalPtr[0])) : _mm256_set1_ps((1.f));
+			//const __m256 mlambdainv = (lambdalPtr[0] != 0.f) ? _mm256_set1_ps((1.f / lambdalPtr[0])) : _mm256_set1_ps((FLT_MAX));
 
 			if (k == 0)
 			{
@@ -1008,14 +1033,19 @@ void ConstantTimeHDGF_NystromSingle::normalize(cv::Mat& dst)
 				for (int x = boundaryLength; x < img_size.width - boundaryLength; x += 8)
 				{
 					const __m256 mdenom = _mm256_load_ps(denom_ptr + x);
+					
+#if 0
+					//__m256 mnumer0 = _mm256_div_avoidzerodiv_ps(_mm256_load_ps(numer0 + x), mdenom);
+					//__m256 mnumer1 = _mm256_div_avoidzerodiv_ps(_mm256_load_ps(numer1 + x), mdenom);
+					//__m256 mnumer2 = _mm256_div_avoidzerodiv_ps(_mm256_load_ps(numer2 + x), mdenom);
+					__m256 mnumer0 = _mm256_div_zerodivzero_ps(_mm256_load_ps(numer0 + x), mdenom);
+					__m256 mnumer1 = _mm256_div_zerodivzero_ps(_mm256_load_ps(numer1 + x), mdenom);
+					__m256 mnumer2 = _mm256_div_zerodivzero_ps(_mm256_load_ps(numer2 + x), mdenom);
+#else
 					__m256 mnumer0 = _mm256_div_ps(_mm256_load_ps(numer0 + x), mdenom);
 					__m256 mnumer1 = _mm256_div_ps(_mm256_load_ps(numer1 + x), mdenom);
 					__m256 mnumer2 = _mm256_div_ps(_mm256_load_ps(numer2 + x), mdenom);
-
-					//mnumer0 = _mm256_div_avoidzerodiv_ps(mnumer0, mdenom);
-					//mnumer1 = _mm256_div_avoidzerodiv_ps(mnumer1, mdenom);
-					//mnumer2 = _mm256_div_avoidzerodiv_ps(mnumer2, mdenom);
-
+#endif
 					const __m256 msrc0 = _mm256_load_ps(src0 + x);
 					const __m256 msrc1 = _mm256_load_ps(src1 + x);
 					const __m256 msrc2 = _mm256_load_ps(src2 + x);

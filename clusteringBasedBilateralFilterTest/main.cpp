@@ -8,10 +8,13 @@
 
 using namespace std;
 using namespace cv;
-#pragma comment(lib,"../x64/Release/clusteringHDGF.lib")
+
 #if _DEBUG
+#pragma comment(lib,"../x64/Debug/clusteringHDGF.lib")
 #pragma comment(lib,"opencpd.lib")
+#pragma comment(lib,"SpatialFilter.lib")
 #else
+#pragma comment(lib,"../x64/Release/clusteringHDGF.lib")
 #pragma comment(lib,"opencp.lib")
 #pragma comment(lib,"SpatialFilter.lib")
 #endif
@@ -372,12 +375,12 @@ void testClusteringHDGF_SpringerNature(string wname)
 	//cv::Size division(2, 2);
 	//cv::Size division(1, 1);
 
-	//int methodHDGF = RGB;
-	//int methodHDGF = RGBD;
-	//int methodHDGF = RGBIR;
-	//int methodHDGF = FNF;
-	//int methodHDGF = HSI;
-	int typeHDGF = NLM;
+	//int typeHDGF = RGB;
+	//int typeHDGF = RGBD;
+	//int typeHDGF = RGBIR;
+	int typeHDGF = FNF;
+	//int typeHDGF = HSI;
+	//int typeHDGF = NLM;
 	createTrackbar("HDGF method", wname2, &typeHDGF, 5);
 	//int clusteringHDGFMethod = 0; //interpolation
 	int clusteringHDGFMethod = 1; //Nystrom
@@ -551,7 +554,7 @@ void testClusteringHDGF_SpringerNature(string wname)
 	int srcdownsample = 0; createTrackbar("src_downsample", wname2, &srcdownsample, 3);
 
 	//int K_ = 5; createTrackbar("K", wname, &K_, 5000);
-	int K_ = 10; createTrackbar("K", wname2, &K_, 1024); setTrackbarMin("K", wname2, 2);
+	int K_ = 100; createTrackbar("K", wname2, &K_, 1024); setTrackbarMin("K", wname2, 2);
 	int km_iter = 5; createTrackbar("km iter", wname2, &km_iter, 100);
 	setTrackbarMin("km iter", wname2, 1);
 	int km_attempts = 1; createTrackbar("km attempts", wname2, &km_attempts, 5);
@@ -572,8 +575,8 @@ void testClusteringHDGF_SpringerNature(string wname)
 	int ds_method = DownsampleMethod::IMPORTANCE_MAP;
 	createTrackbar("downsample method", wname2, &ds_method, DownsampleMethod::DownsampleMethodSize - 1);
 	int crop = 1; createTrackbar("isCropClustering", wname2, &crop, 1);
-	int tilex = 2; createTrackbar("tilex", wname2, &tilex, 5);
-	int tiley = 2; createTrackbar("tiley", wname2, &tiley, 5);
+	int tilex = 3; createTrackbar("tilex", wname2, &tilex, 5);
+	int tiley = 3; createTrackbar("tiley", wname2, &tiley, 5);
 	int softlambda = 50; createTrackbar("soft:lambda*0.001", wname2, &softlambda, 2000);
 	int localmu = 1; createTrackbar("isLocalMu", wname2, &localmu, 1);
 	int localsp = 0; createTrackbar("isLocalSP", wname2, &localsp, 1);

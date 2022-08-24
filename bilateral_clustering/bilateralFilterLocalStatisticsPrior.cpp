@@ -1,5 +1,4 @@
 #include "HDGF.hpp"
-//#include <opencp.hpp>
 
 //A LOCAL STATISTICS PRIOR
 void bilateralFilterLocalStatisticsPrior(const std::vector<cv::Mat>& src, std::vector<cv::Mat>& dest, const float sigma_range, const float sigma_space, const float delta, std::vector<cv::Mat>& smooth)
