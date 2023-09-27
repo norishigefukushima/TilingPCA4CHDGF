@@ -1,4 +1,5 @@
 #include "HDGF.hpp"
+#define USE_EIGEN
 #ifdef USE_EIGEN
 #include <Eigen/Eigen>
 #include <opencv2/core/eigen.hpp>
@@ -97,7 +98,7 @@ void ConstantTimeHDGF_NystromSingle::computeAandEVD(const cv::Mat& mu, cv::Mat& 
 					distance += double(mui[c] - muj[c]) * double(mui[c] - muj[c]);
 				}
 				double* a_j = A64.ptr<double>(j);
-#ifndef SUBNORMALCLIP 
+#ifdef SUBNORMALCLIP 
 				a_j[i] = a_i[j] = std::exp(std::max(coeff64 * distance, (double)EXP_ARGUMENT_CLIP_VALUE_SP));
 #else
 				a_j[i] = a_i[j] = std::exp(coeff64 * distance);
@@ -122,7 +123,7 @@ void ConstantTimeHDGF_NystromSingle::computeAandEVD(const cv::Mat& mu, cv::Mat& 
 #else
 		cv::Mat lambdaA64;
 		cv::Mat eigenvecA64;
-		
+
 		cv::eigen(A64, lambdaA64, eigenvecA64);
 #endif
 		lambdaA64.convertTo(lambdaA, CV_32F);
@@ -1033,7 +1034,7 @@ void ConstantTimeHDGF_NystromSingle::normalize(cv::Mat& dst)
 				for (int x = boundaryLength; x < img_size.width - boundaryLength; x += 8)
 				{
 					const __m256 mdenom = _mm256_load_ps(denom_ptr + x);
-					
+
 #if 0
 					//__m256 mnumer0 = _mm256_div_avoidzerodiv_ps(_mm256_load_ps(numer0 + x), mdenom);
 					//__m256 mnumer1 = _mm256_div_avoidzerodiv_ps(_mm256_load_ps(numer1 + x), mdenom);

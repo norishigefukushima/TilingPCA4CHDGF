@@ -375,10 +375,10 @@ void testClusteringHDGF_SpringerNature(string wname)
 	//cv::Size division(2, 2);
 	//cv::Size division(1, 1);
 
-	//int typeHDGF = RGB;
+	int typeHDGF = RGB;
 	//int typeHDGF = RGBD;
 	//int typeHDGF = RGBIR;
-	int typeHDGF = FNF;
+	//int typeHDGF = FNF;
 	//int typeHDGF = HSI;
 	//int typeHDGF = NLM;
 	createTrackbar("HDGF method", wname2, &typeHDGF, 5);
@@ -554,7 +554,7 @@ void testClusteringHDGF_SpringerNature(string wname)
 	int srcdownsample = 0; createTrackbar("src_downsample", wname2, &srcdownsample, 3);
 
 	//int K_ = 5; createTrackbar("K", wname, &K_, 5000);
-	int K_ = 100; createTrackbar("K", wname2, &K_, 1024); setTrackbarMin("K", wname2, 2);
+	int K_ = 10; createTrackbar("K", wname2, &K_, 1024); setTrackbarMin("K", wname2, 2);
 	int km_iter = 5; createTrackbar("km iter", wname2, &km_iter, 100);
 	setTrackbarMin("km iter", wname2, 1);
 	int km_attempts = 1; createTrackbar("km attempts", wname2, &km_attempts, 5);

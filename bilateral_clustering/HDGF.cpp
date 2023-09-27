@@ -879,13 +879,13 @@ void sampling_imgproc(Mat& src_, Mat& dest)
 {
 	Mat src = src_.clone();
 
-
 	double ss1 = 3.0;
 	Mat temp;
 	GaussianBlur(src, temp, Size((int)ceil(ss1 * 3) * 2 + 1, (int)ceil(ss1 * 3) * 2 + 1), ss1);
 	absdiff(temp, src, dest);
 
 	Size ksize = Size(5, 5);
+	//cp::minFilter(dest, dest, 1);
 	GaussianBlur(dest, dest, ksize, 1);
 
 	/*Mat temp;

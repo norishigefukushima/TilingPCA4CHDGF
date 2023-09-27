@@ -836,8 +836,8 @@ void ConstantTimeHDGF_InterpolationSingle::mergeRecomputeAlphaForUsingNLMMu(std:
 						mdiff = _mm256_fmadd_ps(msub, msub, mdiff);
 					}
 				}
-				mdiff =_mm256_mul_ps(mdiff, _mm256_set1_ps(9.f));
-				
+				mdiff = _mm256_mul_ps(mdiff, _mm256_set1_ps(9.f));
+
 				const __m256 malpha = v_exp_ps<use_fmath>(_mm256_mul_ps(mcoef, mdiff));
 
 				if constexpr (isInit)
@@ -1992,7 +1992,7 @@ void ConstantTimeHDGF_InterpolationSingle::merge(const int k, const bool isInit)
 {
 	//merge
 	//if (isUseLocalMu && (!isJoint))
-	if (isUseLocalMu&& (statePCA != 2))
+	if (isUseLocalMu && (statePCA != 2))
 	{
 		//std::cout << "here: using local mu" << std::endl;
 		const bool isNLM = false;
@@ -2062,13 +2062,13 @@ void ConstantTimeHDGF_InterpolationSingle::merge(const int k, const bool isInit)
 		{
 			if (isUseFmath) mergeRecomputeAlpha<1, false>(vguide, k);
 			else mergeRecomputeAlpha<0, false>(vguide, k);
-	}
+		}
 #else 
 		computeAlpha<1>((isJoint) ? vguide : vsrc, k);//K*imsize
 		merge(k, isInit);
 #endif
-}
 	}
+}
 
 void ConstantTimeHDGF_InterpolationSingle::split_blur(const int k, const bool isUseFmath, const bool isUseLSP)
 {
@@ -2285,6 +2285,7 @@ void ConstantTimeHDGF_InterpolationSingle::split_blur(const int k, const bool is
 				for (int n = 0; n < IMSIZE8; n++)
 				{
 					const __m256 mvecw = _mm256_andnot_ps(mone, _mm256_cmp_ps(*idx++, mk, 0));
+
 					*vecw++ = mvecw;
 					*inter0++ = _mm256_mul_ps(mvecw, *src0++);
 				}
@@ -2612,18 +2613,48 @@ void ConstantTimeHDGF_InterpolationSingle::split_blur(const int k, const bool is
 			const __m256* src0 = (downSampleImage == 1) ? (__m256*)vsrc[0].ptr<float>() : (__m256*)vsrcRes[0].ptr<float>();
 			const __m256* src1 = (downSampleImage == 1) ? (__m256*)vsrc[1].ptr<float>() : (__m256*)vsrcRes[1].ptr<float>();
 			const __m256* src2 = (downSampleImage == 1) ? (__m256*)vsrc[2].ptr<float>() : (__m256*)vsrcRes[2].ptr<float>();
+
 			__m256* inter0 = (__m256*)split_inter[0].ptr<float>();
 			__m256* inter1 = (__m256*)split_inter[1].ptr<float>();
 			__m256* inter2 = (__m256*)split_inter[2].ptr<float>();
+
+
+			const __m256* guide0 = (downSampleImage == 1) ? (__m256*)vguide[0].ptr<float>() : (__m256*)vguideRes[0].ptr<float>();
+			const __m256* guide1 = (downSampleImage == 1) ? (__m256*)vguide[1].ptr<float>() : (__m256*)vguideRes[1].ptr<float>();
+			const __m256* guide2 = (downSampleImage == 1) ? (__m256*)vguide[2].ptr<float>() : (__m256*)vguideRes[2].ptr<float>();
 
 			//isWRedunductLoadDecomposition = false;
 			if (isWRedunductLoadDecomposition)
 			{
 				for (int n = 0; n < IMSIZE8; n++)
 				{
-					const __m256 mvecw = _mm256_andnot_ps(mone, _mm256_cmp_ps(*idx++, mk, 0));
-					*vecw++ = mvecw;
-					*inter0++ = _mm256_mul_ps(mvecw, *src0++);
+					/*if constexpr (true)
+					{
+						//test for soft assign (not good)
+						const __m256 mlambda = _mm256_set1_ps(-1.0 / (1000.0));
+
+						const float* muPtr = mu.ptr<float>(k);
+						__m256 mc0 = _mm256_set1_ps(muPtr[0]);
+						__m256 mc1 = _mm256_set1_ps(muPtr[1]);
+						__m256 mc2 = _mm256_set1_ps(muPtr[2]);
+						__m256 msub = _mm256_sub_ps(guide0[n], mc0);
+						__m256 mdiff = _mm256_mul_ps(msub, msub);
+						msub = _mm256_sub_ps(guide1[n], mc1);
+						mdiff = _mm256_fmadd_ps(msub, msub, mdiff);
+						msub = _mm256_sub_ps(guide2[n], mc2);
+						mdiff = _mm256_fmadd_ps(msub, msub, mdiff);
+						const __m256 mvecw2 = v_exp_ps<1>(_mm256_mul_ps(mlambda, _mm256_sqrt_ps(mdiff)));
+						const __m256 mvecw = v_exp_ps<1>(_mm256_mul_ps(mlambda, mdiff));
+
+						*vecw++ = mvecw;
+						*inter0++ = _mm256_mul_ps(mvecw, src0[n]);
+					}
+					else*/
+					{
+						const __m256 mvecw = _mm256_andnot_ps(mone, _mm256_cmp_ps(*idx++, mk, 0));
+						*vecw++ = mvecw;
+						*inter0++ = _mm256_mul_ps(mvecw, *src0++);
+					}
 				}
 				GF->filter(split_inter[0], split_inter[0], sigma_space / downSampleImage, spatial_order, borderType);
 
