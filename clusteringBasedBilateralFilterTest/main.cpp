@@ -390,13 +390,14 @@ void testClusteringHDGF_SpringerNature(string wname)
 #pragma region readimage
 	const int imgNum = 10;
 	vector<Mat> src(imgNum);
+	cout << "read RGB" << endl;
 	for (int i = 0; i < imgNum; ++i)
 	{
 		const int idx = (i == 9) ? 13 : i + 1;
 		string path = format("img/Kodak/kodim%02d.png", idx);
 		Mat a = imread(path, (color == 1) ? ColorOptionRGB : ColorOptionGRAY);
 		if (a.empty())cout << "empty:" << path << endl;
-		const int bb = 10;
+		const int bb = 5;
 		Mat d;
 		copyMakeBorder(a(Rect(bb, bb, readw - 2 * bb, readh - 2 * bb)).clone(), d, bb, bb, bb, bb, BORDER_REFLECT101);
 		src[i] = d.clone();
@@ -406,13 +407,13 @@ void testClusteringHDGF_SpringerNature(string wname)
 	vector<Mat> src_rgbir_ir(10);
 	if (typeHDGF == RGBIR || isReadAll)
 	{
-		cout << "load RGB-NIR" << endl;
+		cout << "read RGB-NIR" << endl;
 		//E:\Github\bilateral_clustering\bilateral_clustering\
 		Mat temp = imread("img/ir/books.png");
 		for (int idx = 0; idx < imgNum; idx++)
 		{
-			src_rgbir_rgb[idx] = imread(format("img/RGBIR/%d_rgb.png", idx), (color == 1) ? ColorOptionRGB : ColorOptionGRAY);
-			src_rgbir_ir[idx] = imread(format("img/RGBIR/%d_ir.png", idx), ColorOptionGRAY);
+			src_rgbir_rgb[idx] = imread(format("img/RGB_IR/%d_rgb.png", idx), (color == 1) ? ColorOptionRGB : ColorOptionGRAY);
+			src_rgbir_ir[idx] = imread(format("img/RGB_IR/%d_ir.png", idx), ColorOptionGRAY);
 		}
 	}
 	bool isShowAllImage = true;
@@ -436,8 +437,8 @@ void testClusteringHDGF_SpringerNature(string wname)
 		cout << "read flash noflash" << endl;
 		for (int i = 0; i < imgNum; i++)
 		{
-			src_fnf_flash[i] = imread(format("img/flash/%dflash.png", i), (color == 1) ? ColorOptionRGB : ColorOptionGRAY);
-			src_fnf_noflash[i] = imread(format("img/flash/%dnoflash.png", i), (color == 1) ? ColorOptionRGB : ColorOptionGRAY);
+			src_fnf_flash[i] = imread(format("img/Flash_Noflash/%dflash.png", i), (color == 1) ? ColorOptionRGB : ColorOptionGRAY);
+			src_fnf_noflash[i] = imread(format("img/Flash_Noflash/%dnoflash.png", i), (color == 1) ? ColorOptionRGB : ColorOptionGRAY);
 		}
 	}
 	/*if (isShowAllImage)
@@ -471,8 +472,8 @@ void testClusteringHDGF_SpringerNature(string wname)
 			if (i == 8)s = "Reindeer";
 			if (i == 9)s = "TeddyH";
 
-			src_rgbd_disp[i] = imread("img/RGBD/" + s + "_disp.png", ColorOptionGRAY);
-			src_rgbd_rgb[i] = imread("img/RGBD/" + s + "_rgb.png", (color == 1) ? ColorOptionRGB : ColorOptionGRAY);
+			src_rgbd_disp[i] = imread("img/RGB_D/" + s + "_disp.png", ColorOptionGRAY);
+			src_rgbd_rgb[i] = imread("img/RGB_D/" + s + "_rgb.png", (color == 1) ? ColorOptionRGB : ColorOptionGRAY);
 		}
 	}
 	/*if (isShowAllImage)
@@ -504,7 +505,7 @@ void testClusteringHDGF_SpringerNature(string wname)
 				{
 					//\\fukushima-nas\share\2.�\�t�g�E�F�A�E�f�[�^�Z�b�g\3.�f�[�^�Z�b�g\hyperspectral\2002
 					//\\fukushima - nas\share\2.�\�t�g�E�F�A�E�f�[�^�Z�b�g\3.�f�[�^�Z�b�g\hyperspectral\2004
-					a = imread(format("img/hsi/%d_%03d.png", n, i), ColorOptionGRAY);
+					a = imread(format("img/HSI/%d_%03d.png", n, i), ColorOptionGRAY);
 					hsi.push_back(a.clone());
 				}
 				merge(hsi, hsisrc[n]);
@@ -605,7 +606,7 @@ void testClusteringHDGF_SpringerNature(string wname)
 	cp::UpdateCheck uc2(sw1, sw2, sw3, cm, ds, K_, ds_method, tile_truncate_r, crop, gf_order, srcdownsample);
 	cp::UpdateCheck uc3(km_attempts, km_sigma, km_iter, localmu, localsp, localsp_delta, softlambda);
 	//cp::UpdateCheck uc4(lambda, delta, localmu, localsp);
-	cp::ConsoleImage ci(Size(640, 800), "Info");
+	cp::ConsoleImage ci(Size(640, 800));
 
 	cp::Timer tpca("time", cp::TIME_MSEC, false);
 	cp::Timer t1("time", cp::TIME_MSEC, false);
@@ -1099,9 +1100,10 @@ void testClusteringHDGF_SpringerNature(string wname)
 		ci("time   1    Mean %7.2f MED %7.2f ms", t1.getLapTimeMean(), t1.getLapTimeMedian());
 		ci("time   2    Mean %7.2f MED %7.2f ms", t2.getLapTimeMean(), t2.getLapTimeMedian());
 		ci("time   3    Mean %7.2f MED %7.2f ms", t3.getLapTimeMean(), t3.getLapTimeMedian());
-		ci(format("PSNR %5.2f dB %5.2f dB %5.2f-%5.2f (%5.2f)", psnr1.getMedian(), psnr1.getMean(), psnr1.getMin(), psnr1.getMax(), psnr1.getStd()));
-		ci(format("PSNR %5.2f dB %5.2f dB %5.2f-%5.2f (%5.2f)", psnr2.getMedian(), psnr2.getMean(), psnr2.getMin(), psnr2.getMax(), psnr2.getStd()));
-		ci(format("PSNR %5.2f dB %5.2f dB %5.2f-%5.2f (%5.2f)", psnr3.getMedian(), psnr3.getMean(), psnr3.getMin(), psnr3.getMax(), psnr3.getStd()));
+		ci(format("PSNR Median Mean Min  - Max    (std)", psnr1.getMedian(), psnr1.getMean(), psnr1.getMin(), psnr1.getMax(), psnr1.getStd()));
+		ci(format("PSNR %5.2f %5.2f %5.2f-%5.2f (%5.2f)", psnr1.getMedian(), psnr1.getMean(), psnr1.getMin(), psnr1.getMax(), psnr1.getStd()));
+		ci(format("PSNR %5.2f %5.2f %5.2f-%5.2f (%5.2f)", psnr2.getMedian(), psnr2.getMean(), psnr2.getMin(), psnr2.getMax(), psnr2.getStd()));
+		ci(format("PSNR %5.2f %5.2f %5.2f-%5.2f (%5.2f)", psnr3.getMedian(), psnr3.getMean(), psnr3.getMin(), psnr3.getMax(), psnr3.getStd()));
 		ci(format("PSNR-src %5.3f dB %5.3f-%5.3f (%5.3f)", psnrsrc.getMean(), psnrsrc.getMin(), psnrsrc.getMax(), psnrsrc.getStd()));
 		/*for (int i = 0; i < division.area(); i++)
 		{
