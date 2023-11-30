@@ -1,12 +1,23 @@
 # Tiling and PCA Strategy for Clustering-based High-Dimensional Gaussian Filtering
-This page provides the code, binary, subjective assessment results, and distortion dataset of "Tiling and PCA Strategy for Clustering-based High-Dimensional Gaussian Filtering".
+This page provides the code, binary, and image dataset of "Tiling and PCA Strategy for Clustering-based High-Dimensional Gaussian Filtering".
 
 # Paper
-Sou Oishi and Norishige Fukushima, "Tiling and PCA strategy for Clustering-based High-Dimensional Gaussian Filtering", SN Computer Science, 2023.
+Sou Oishi and Norishige Fukushima, "Tiling and PCA strategy for Clustering-based High-Dimensional Gaussian Filtering", SN Computer Science, vol. 5 article number 40, 2023.
 
 ## bibtex
 ```
+@article{oishi2023tiling,
+    author  = {Sou Oishi and Yoshihiro Maeda and Norishige Fukushima},
+    title   = {Tiling and PCA Strategy for Clustering-Based High-Dimensional Gaussian Filtering},
+    journal = {SN Computer Science},
+    volume  = {5},
+    number  = {40},
+    pages   = {1--20},
+    year    = {2023},
+    doi     = {10.1007/s42979-023-02319-6},
+}
 ```
+
 ## abstract
 Purpose: Edge-preserving filtering is an essential tool for image processing applications and has various types of filtering.
 High-dimensional Gaussian filtering (HDGF) supports a wide range of edge-preserving filtering.
