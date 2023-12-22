@@ -2,7 +2,7 @@
 This page provides the code, binary, and image dataset of "Tiling and PCA Strategy for Clustering-based High-Dimensional Gaussian Filtering".
 
 # Paper
-Sou Oishi and Norishige Fukushima, "Tiling and PCA strategy for Clustering-based High-Dimensional Gaussian Filtering", SN Computer Science, vol. 5 article number 40, 2023.
+Sou Oishi and Norishige Fukushima, "Tiling and PCA strategy for Clustering-based High-Dimensional Gaussian Filtering", SN Computer Science, vol. 5 article number 40, 2023. [[Springer]](https://link.springer.com/article/10.1007/s42979-023-02319-6)
 
 ## bibtex
 ```
