@@ -147,16 +147,16 @@ int command(int argc, const char* const argv[])
 
 				if (pcaMethod == 0)
 				{
-					tHDGF->jointfilter(src32f, guide32f, dst32f, ss, sr, ClusterMethod::KGaussInvMeansPPFast, k, cp::SpatialFilterAlgorithm::SlidingDCT5_AVX, 2, CV_32F, true, 2, DownsampleMethod::IMPORTANCE_MAP, 3.0, border);
+					tHDGF->jointfilter(src32f, guide32f, dst32f, ss, sr, ClusterMethod::KGaussInvMeansPPFast, k, cp::SpatialFilterAlgorithm::SlidingDCT5_AVX, 2, CV_32F, 0.25, DownsampleMethod::DITHER_GRADIENT_MAX, 3.0, border);
 				}
 				if (pcaMethod == 1)
 				{
 					cp::cvtColorPCA(guide32f, guide4Filter, d);
-					tHDGF->jointfilter(src32f, guide32f, dst32f, ss, sr, ClusterMethod::KGaussInvMeansPPFast, k, cp::SpatialFilterAlgorithm::SlidingDCT5_AVX, 2, CV_32F, true, 2, DownsampleMethod::IMPORTANCE_MAP, 3.0, border);
+					tHDGF->jointfilter(src32f, guide32f, dst32f, ss, sr, ClusterMethod::KGaussInvMeansPPFast, k, cp::SpatialFilterAlgorithm::SlidingDCT5_AVX, 2, CV_32F, 0.25, DownsampleMethod::DITHER_GRADIENT_MAX, 3.0, border);
 				}
 				if (pcaMethod == 2)
 				{
-					tHDGF->jointPCAfilter(src32f, guide32f, d, dst32f, ss, sr, ClusterMethod::KGaussInvMeansPPFast, k, cp::SpatialFilterAlgorithm::SlidingDCT5_AVX, 2, CV_32F, true, 2, DownsampleMethod::IMPORTANCE_MAP, 3.0, border);
+					tHDGF->jointPCAfilter(src32f, guide32f, d, dst32f, ss, sr, ClusterMethod::KGaussInvMeansPPFast, k, cp::SpatialFilterAlgorithm::SlidingDCT5_AVX, 2, CV_32F, 0.25, DownsampleMethod::DITHER_GRADIENT_MAX, 3.0, border);
 				}
 			}
 			else if (filteringMethod == 2)
@@ -211,18 +211,18 @@ int command(int argc, const char* const argv[])
 				{
 					cp::IM2COL(guide32f, guide4Filter, nlm_r, border);
 					tHDGF->jointfilter(src32f, guide4Filter, dst32f, ss, sr,
-						ClusterMethod::KGaussInvMeansPPFast, k, cp::SpatialFilterAlgorithm::SlidingDCT5_AVX, 2, CV_32F, true, 2, DownsampleMethod::IMPORTANCE_MAP, 3.0, border);
+						ClusterMethod::KGaussInvMeansPPFast, k, cp::SpatialFilterAlgorithm::SlidingDCT5_AVX, 2, CV_32F, 0.25, DownsampleMethod::DITHER_GRADIENT_MAX, 3.0, border);
 				}
 				if (pcaMethod == 1)
 				{
 					DRIM2COL(guide32f, guide4Filter, nlm_r, d, border, 0);
 					tHDGF->jointfilter(src32f, guide32f, dst32f, ss, sr,
-						ClusterMethod::KGaussInvMeansPPFast, k, cp::SpatialFilterAlgorithm::SlidingDCT5_AVX, 2, CV_32F, true, 2, DownsampleMethod::IMPORTANCE_MAP, 3.0, border);
+						ClusterMethod::KGaussInvMeansPPFast, k, cp::SpatialFilterAlgorithm::SlidingDCT5_AVX, 2, CV_32F, 0.25, DownsampleMethod::DITHER_GRADIENT_MAX, 3.0, border);
 				}
 				if (pcaMethod == 2)
 				{
 					tHDGF->nlmfilter(src32f, guide32f, dst32f, ss, sr, nlm_r, d,
-						ClusterMethod::KGaussInvMeansPPFast, k, cp::SpatialFilterAlgorithm::SlidingDCT5_AVX, 2, CV_32F, true, 2, DownsampleMethod::IMPORTANCE_MAP, 3.0, border);
+						ClusterMethod::KGaussInvMeansPPFast, k, cp::SpatialFilterAlgorithm::SlidingDCT5_AVX, 2, CV_32F, 0.25, DownsampleMethod::DITHER_GRADIENT_MAX, 3.0, border);
 				}
 			}
 			else if (filteringMethod == 2)
